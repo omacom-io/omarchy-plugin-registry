@@ -9,7 +9,7 @@
 # the app entirely. The sensitive-change cooldown still applies to both: it
 # gates credential-shaped actions, and this is one.
 class DeviceController < ApplicationController
-  before_action :require_recent_second_factor, only: :approve, unless: :approving_client?
+  before_action :require_recent_second_factor, only: :approve, if: :minting_publish_token?
   before_action :require_no_sensitive_cooldown, only: :approve
 
   def show
@@ -50,10 +50,26 @@ class DeviceController < ApplicationController
 
   private
 
-  # Reads the pending authorization rather than anything the request says, so
-  # the weaker gate can only ever be reached by a row that was created asking
-  # for a client token.
-  def approving_client?
-    DeviceAuthorization.find_by_user_code(params[:code])&.for_client? || false
+  # The second-factor gate exists to protect minting something that can ship
+  # code, so it asks exactly that question and stays out of the way otherwise.
+  #
+  # Three things are not that, and each was being asked for a passkey it had no
+  # business needing:
+  #
+  # - Denying. Someone who sees a code they did not ask for must be able to say
+  #   no immediately; gating the safe direction is backwards.
+  # - A client sign-in, which can only do what this browser session can already
+  #   do without a second factor.
+  # - A code that has expired or was already answered, where nothing will be
+  #   minted at all and the action says so itself. Demanding a factor first
+  #   answers the wrong question, and tells someone to go set up MFA when what
+  #   actually happened is that their code ran out.
+  #
+  # It reads the pending authorization rather than anything the request says
+  # about scope, so the weaker path can only ever be reached by a row that was
+  # created asking for a client token.
+  def minting_publish_token?
+    return false if params[:decision] == "deny"
+    DeviceAuthorization.find_by_user_code(params[:code])&.for_publish? || false
   end
 end

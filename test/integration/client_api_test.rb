@@ -81,6 +81,31 @@ class ClientApiTest < ActionDispatch::IntegrationTest
     assert_redirected_to settings_two_factor_path
   end
 
+  # Someone who sees a code they did not ask for must be able to say no
+  # immediately. Gating the safe direction behind a passkey is backwards.
+  test "denying never asks for a second factor" do
+    post "/api/v1/device/code"
+    device_code, user_code = body["device_code"], body["user_code"]
+
+    sign_in_as @user, second_factor_verified: false
+    post approve_device_path, params: { code: user_code, decision: "deny" }
+    assert_redirected_to dashboard_path
+
+    post "/api/v1/device/token", params: { device_code: device_code }
+    assert_response :forbidden
+    assert_equal "access_denied", body["error"]
+  end
+
+  # Nothing is minted for a code that has run out, so demanding a factor first
+  # answers the wrong question — and tells someone to go and set up MFA when
+  # what actually happened is that their code expired.
+  test "an expired code says so rather than demanding a second factor" do
+    sign_in_as @user, second_factor_verified: false
+    post approve_device_path, params: { code: "ZZZZ-ZZZZ" }
+    assert_redirected_to device_path
+    assert_match(/expired/i, flash[:alert])
+  end
+
   # The scope is decided when the row is created, so nothing the approving
   # browser sends can turn a client request into a publish token.
   test "an unknown scope asks for the flow that is gated hardest" do
