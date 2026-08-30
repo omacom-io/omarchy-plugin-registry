@@ -23,7 +23,12 @@ class Comment < ApplicationRecord
 
   def refresh_plugin_comment_count
     plugin.with_lock do
-      plugin.update_columns(comments_count: plugin.comments.visible.count)
+      # updated_at too — see Rating#refresh_plugin_totals for why a total that
+      # moves without touching the row leaves every cached client stale.
+      plugin.update_columns(
+        comments_count: plugin.comments.visible.count,
+        updated_at: Time.current
+      )
     end
   end
 

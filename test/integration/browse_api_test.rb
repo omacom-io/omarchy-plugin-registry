@@ -32,6 +32,30 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
   # --- directory -----------------------------------------------------------
 
+  # A total that moves without touching the row answers every If-None-Match
+  # with 304, and a client holding a cached listing goes on showing the old
+  # number for as long as it keeps asking politely.
+  test "a new rating and a new comment both invalidate the directory" do
+    kim = User.create!(email_address: "kim@example.com", name: "Kim")
+
+    get directory_json_path
+    assert_response :success
+    etag = response.headers["ETag"]
+    assert etag.present?
+
+    get directory_json_path, headers: { "If-None-Match" => etag }
+    assert_response :not_modified, "nothing changed, so this should be a 304"
+
+    @weather.ratings.create!(user: kim, value: 5)
+    get directory_json_path, headers: { "If-None-Match" => etag }
+    assert_response :success, "a rating changed the average and must invalidate"
+    rated_etag = response.headers["ETag"]
+
+    @weather.comments.create!(user: kim, body: "Runs well on two monitors.")
+    get directory_json_path, headers: { "If-None-Match" => rated_etag }
+    assert_response :success, "a comment changed the count and must invalidate"
+  end
+
   # The detail response layers a comments ARRAY over the same partial, so the
   # count needs its own name or a client parses a plugin two different ways
   # depending on where it found it.
