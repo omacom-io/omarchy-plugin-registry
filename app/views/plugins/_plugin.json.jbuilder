@@ -4,6 +4,14 @@
 # comments) is layered on by plugins/show.
 json.id plugin.manifest_id
 json.publisher plugin.publisher.name
+# The namespace's standing, not the plugin's. `claimed` false means the
+# listing was seeded from the legacy marketplace and nobody has proven control
+# of the source repo — a client that shows a trust badge needs this on the
+# listing, not only on the detail response, or it has to fetch a publisher per
+# card to find out. Flat keys rather than a nested object: `publisher` is a
+# string in this shape already and clients parse it as one.
+json.publisher_claimed plugin.publisher.claimed?
+json.publisher_verified plugin.publisher.verified?
 json.name plugin.name
 json.full_name plugin.full_name
 json.summary plugin.summary

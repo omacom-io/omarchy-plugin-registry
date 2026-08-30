@@ -128,6 +128,8 @@ One plugin, with everything the web page renders.
   "plugin": {
     "id": "acme.weather",
     "publisher": "acme",
+    "publisher_claimed": true,
+    "publisher_verified": false,
     "name": "weather",
     "full_name": "acme/weather",
     "summary": "Forecast in the bar",
@@ -171,6 +173,12 @@ One plugin, with everything the web page renders.
 - `install_command` is `null` when the plugin is not installable. Use
   `installable` to decide whether to offer an install button — a security hold
   or a plugin with nothing through review must not present one.
+- `publisher_claimed` / `publisher_verified` are the namespace's standing, not
+  the plugin's, and they are on every plugin entry — including in the
+  directory listing, so a grid can render a trust badge without fetching a
+  publisher per card. `publisher_claimed: false` means the listing was seeded
+  from the legacy marketplace and no author has proven control of the source
+  repo; say so rather than implying the namespace is endorsed.
 - `viewer` appears only for an authenticated session. Anonymous clients never
   see it, and those responses are the publicly cacheable ones.
 - `first_published_at` / `last_published_at` are populated on directory

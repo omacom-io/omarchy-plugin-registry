@@ -3,7 +3,10 @@ require "active_support/core_ext/integer/time"
 Rails.application.configure do
   config.x.skip_first_release_gate = true
   config.x.publish_hold = 0
-  config.x.registry_base_url = "http://localhost:3000"
+  # Absolute URLs in the browse API and the data plane are built from this, so
+  # it has to follow the port the server is actually on. A native client that
+  # opens a plugin page reads it literally.
+  config.x.registry_base_url = ENV.fetch("REGISTRY_BASE_URL", "http://localhost:3000")
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Make code changes take effect immediately without server restart.

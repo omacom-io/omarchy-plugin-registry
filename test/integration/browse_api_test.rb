@@ -32,6 +32,24 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
   # --- directory -----------------------------------------------------------
 
+  # A namespace seeded from the legacy marketplace has nobody behind it yet,
+  # and a client must be able to say so instead of implying endorsement.
+  test "an unclaimed publisher is said so on the listing entry" do
+    @acme.update!(claimed: false)
+
+    get directory_json_path
+    assert_response :success
+    refute body["plugins"].sole["publisher_claimed"]
+  end
+
+  test "a verified publisher is said so on the listing entry" do
+    @acme.update!(verified: true)
+
+    get directory_json_path
+    assert_response :success
+    assert body["plugins"].sole["publisher_verified"]
+  end
+
   test "directory JSON lists plugins with the browse vocabulary attached" do
     get directory_json_path
     assert_response :success
@@ -46,6 +64,11 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_equal "Widgets", entry["category_label"]
     assert_equal "omarchy plugin add acme/weather", entry["install_command"]
     assert_equal "http://registry.test/plugins/acme/weather", entry["url"]
+
+    # The namespace's standing travels with every entry, so a grid can render
+    # a trust badge without fetching a publisher per card.
+    assert entry["publisher_claimed"]
+    refute entry["publisher_verified"]
 
     # Facets a client would otherwise have to hardcode
     assert_includes body["taxonomy"]["sorts"], "trending"
