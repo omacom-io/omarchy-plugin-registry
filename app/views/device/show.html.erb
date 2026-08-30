@@ -1,7 +1,19 @@
 <% content_for :title, "Device sign-in — Omarchy Plugins" %>
 <div class="form-page">
-  <p class="eyebrow">CLI sign-in</p>
-  <% if @authorization %>
+  <% if @authorization&.for_client? %>
+    <p class="eyebrow">App sign-in</p>
+    <h1>Sign in to the plugin browser?</h1>
+    <p>An app holding code <strong class="code-chip"><%= @authorization.user_code %></strong> wants to
+      sign in as you. Only approve if you just clicked Sign in in the Omarchy plugin browser
+      yourself and the code above matches the one it is showing.</p>
+    <div class="field">
+      <label>Grants</label>
+      <p class="hint">Reading the directory as you, and posting ratings and comments under your name.
+        It <strong>cannot publish</strong>, yank, change owners, or touch account settings, and it
+        expires in 30 days. Sign out in the app — or revoke it here — to end it sooner.</p>
+    </div>
+  <% elsif @authorization %>
+    <p class="eyebrow">CLI sign-in</p>
     <h1>Approve this terminal?</h1>
     <p>A device holding code <strong class="code-chip"><%= @authorization.user_code %></strong> wants a
       publish token for your account. Only approve if you just ran
@@ -17,15 +29,19 @@
         It's push-only — it can't yank, change owners, or touch account settings — expires in 7 days,
         and every version still goes through review before it can go live.</p>
     </div>
+  <% end %>
+
+  <% if @authorization %>
     <%= form_with url: approve_device_path do |form| %>
       <input type="hidden" name="code" value="<%= @authorization.user_code %>">
       <button type="submit" class="button">Approve</button>
       <button type="submit" name="decision" value="deny" class="button button--ghost">Deny</button>
     <% end %>
   <% else %>
-    <h1>Enter the code from your terminal.</h1>
-    <p><code>omarchy plugin publish</code> shows an 8-character code. Type it here to connect
-      that terminal to your account.</p>
+    <p class="eyebrow">Device sign-in</p>
+    <h1>Enter the code from your device.</h1>
+    <p><code>omarchy plugin publish</code> and the Omarchy plugin browser each show an 8-character
+      code. Type it here to connect that device to your account.</p>
     <%= form_with url: device_path, method: :get do |form| %>
       <div class="field">
         <label for="code">Code</label>

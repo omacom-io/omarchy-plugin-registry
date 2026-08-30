@@ -11,16 +11,25 @@ module Api
       rate_limit to: 240, within: 15.minutes, only: :token, store: RATE_LIMIT_STORE,
         with: -> { render json: { error: "slow_down" }, status: :too_many_requests }
 
-      # POST /api/v1/device/code — CLI starts the flow, optionally naming the
-      # publisher/plugin it wants so the approval page can display the scope
-      # instead of making the human re-type it
+      # POST /api/v1/device/code — a device starts the flow, optionally naming
+      # the publisher/plugin it wants so the approval page can display the
+      # scope instead of making the human re-type it.
+      #
+      # `scope=client` asks for a token that can rate and comment but never
+      # publish; anything else, including nothing, asks for a publish token.
+      # verification_uri_complete carries the code in the URL so a desktop app
+      # can open a page the user only has to approve — the bare
+      # verification_uri stays for a terminal that can only print one.
       def code
         authorization = DeviceAuthorization.start!(
+          token_kind: params[:scope] == "client" ? :client : :publish,
           requested_publisher: params[:publisher], requested_plugin: params[:plugin])
         render json: {
           device_code: authorization.plaintext_device_code,
           user_code: authorization.user_code,
           verification_uri: "#{DataPlane.base_url}/device",
+          verification_uri_complete: "#{DataPlane.base_url}/device?code=#{authorization.user_code}",
+          scope: authorization.token_kind,
           expires_in: DeviceAuthorization::EXPIRATION.to_i,
           interval: DeviceAuthorization::POLL_INTERVAL
         }, status: :created
@@ -48,6 +57,7 @@ module Api
           render json: {
             token: plaintext,
             token_type: "bearer",
+            kind: authorization.api_token&.kind,
             scope: authorization.api_token&.scope_label,
             expires_at: authorization.api_token&.expires_at&.utc&.iso8601
           }

@@ -1,8 +1,13 @@
-# CLI login without ever typing credentials into a terminal (RFC 8628 shape):
-# `omarchy plugin publish` requests a code pair, the user approves the 8-char
-# user code in the browser (MFA'd session), and the CLI polls until it
-# receives a freshly minted scoped token. The token plaintext is held
-# encrypted only until the CLI claims it, then wiped.
+# Sign-in without ever typing credentials into the client (RFC 8628 shape):
+# the client requests a code pair, the user approves the 8-char user code in
+# the browser, and the client polls until it receives a freshly minted token.
+# The token plaintext is held encrypted only until the client claims it, then
+# wiped.
+#
+# Two clients use this. `omarchy plugin publish` asks for a publish token from
+# a terminal, against an MFA'd session. The desktop plugin browser asks for a
+# client token, which can only rate and comment — see ApiToken#kind for why
+# that one is not held to the same bar.
 class DeviceAuthorization < ApplicationRecord
   belongs_to :api_token, optional: true
   EXPIRATION = 15.minutes
@@ -10,6 +15,10 @@ class DeviceAuthorization < ApplicationRecord
   POLL_INTERVAL = 5 # seconds, advisory for clients
 
   enum :status, { pending: 0, approved: 1, denied: 2, claimed: 3 }
+  # Which kind of token this authorization will mint. Named on the request so
+  # the approval page can say what is being handed over, and so a browser
+  # asking to comment can never come back holding a publish token.
+  enum :token_kind, { publish: 0, client: 1 }, prefix: :for
 
   belongs_to :user, optional: true
   belongs_to :publisher, optional: true
@@ -22,17 +31,25 @@ class DeviceAuthorization < ApplicationRecord
   # page can show what the terminal wants instead of asking the human to
   # re-type it. They never grant anything: approval still binds to a namespace
   # the signed-in user is a member of, chosen in the browser.
-  def self.start!(requested_publisher: nil, requested_plugin: nil)
+  def self.start!(requested_publisher: nil, requested_plugin: nil, token_kind: :publish)
     raw = "omd_" + SecureRandom.base58(30)
     authorization = create!(
       device_code_digest: digest(raw),
       user_code: generate_user_code,
       expires_at: EXPIRATION.from_now,
+      token_kind: sanitize_kind(token_kind),
       requested_publisher_name: sanitize_hint(requested_publisher),
       requested_plugin_name: sanitize_hint(requested_plugin)
     )
     authorization.instance_variable_set(:@plaintext_device_code, raw)
     authorization
+  end
+
+  # An unrecognised scope falls back to publish rather than to the weaker one:
+  # a caller who asks for something we do not understand gets the flow that is
+  # gated hardest, not the one that is gated least.
+  def self.sanitize_kind(value)
+    token_kinds.key?(value.to_s) ? value.to_s : "publish"
   end
 
   def self.sanitize_hint(value)
@@ -61,7 +78,7 @@ class DeviceAuthorization < ApplicationRecord
   # belongs to (membership is enforced at publish time). Passing a publisher
   # and/or plugin_name narrows it — kept for a future "tighter scope" UI.
   def approve!(user:, publisher: nil, plugin_name: nil)
-    token = ApiToken.mint!(user:, publisher:, plugin_name:)
+    token = ApiToken.mint!(user:, publisher:, plugin_name:, kind: token_kind)
     # The EXACT minted token is referenced — polling must report this token's
     # expiry, not whichever same-scope token happens to be newest
     update!(status: :approved, user:, publisher:, plugin_name:, api_token: token,
