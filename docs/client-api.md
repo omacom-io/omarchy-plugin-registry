@@ -30,7 +30,9 @@ proving a second factor. Demanding a passkey before you may leave a comment
 would be theatre, and it would lock every account without MFA out of the app
 entirely. Publishing is different: it ships code to other people's machines,
 so it keeps the bar. The sensitive-change cooldown applies to both — it gates
-credential-shaped actions, and minting either of these is one.
+credential-shaped actions, and minting either of these is one. Neither applies
+to pressing **Deny**: that mints nothing, and an account in the cooldown is
+exactly the one most likely to be looking at a code it did not ask for.
 
 ## Signing in
 
@@ -135,6 +137,7 @@ never has to stitch two together or refetch to find out what happened.
 ```json
 {
   "plugin": "acme.weather",
+  "comments_count": 3,
   "rating": { "average": 4.5, "count": 10, "mine": 5 },
   "comments": [
     { "id": 12, "body": "Runs well on two monitors.",
@@ -151,6 +154,11 @@ never has to stitch two together or refetch to find out what happened.
 - `publisher_member` is the badge the web page shows for a comment from the
   plugin's own publisher.
 - Hidden comments are not in the list. Newest first, fifty at most.
+- `comments_count` is how long the thread actually is, which is not the length
+  of `comments` once it has been truncated. Show that number, not the array's
+  length, or a plugin with eighty comments starts claiming fifty the moment
+  somebody opens it. It counts visible comments only, so it agrees with the
+  list rather than with what moderation has hidden.
 
 ## `GET /api/v1/plugins/<publisher>/<plugin>`
 
@@ -176,8 +184,9 @@ same claim as one star.
 
 `body` is 3–2,000 characters. Answers `201` with the social payload.
 
-Five an hour per token — the same budget the web form gets. A second door onto
-the same table must not be the cheap way around the first one's limit.
+Five an hour per **account** — the same budget the web form gets. A second door
+onto the same table must not be the cheap way around the first one's limit, and
+counting per token would make signing in again the cheap way around this one.
 
 ## `DELETE /api/v1/comments/<id>`
 

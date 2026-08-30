@@ -36,6 +36,11 @@ module Api
 
         {
           plugin: plugin.manifest_id,
+          # How long the thread actually is, which is not `comments.length`
+          # when it has been truncated. A client showing a count next to a
+          # card needs the real number, or a plugin with eighty comments
+          # starts claiming fifty the moment someone opens it.
+          comments_count: plugin.comments_count,
           rating: {
             average: plugin.average_rating,
             count: plugin.ratings_count,

@@ -78,9 +78,12 @@ category:system  curated category
 }
 ```
 
-`comments` is how many visible comments a plugin has, so a grid can show the
-count without fetching a thread per card. The thread itself is on the plugin
-response.
+`comments_count` is how many **visible** comments a plugin has — hidden ones
+are not counted, so it agrees with the thread rather than with what moderation
+has taken down. It is there so a grid can show the count without fetching a
+thread per card. The thread itself is `comments` on the plugin response, which
+is an array; the count keeps its own name so one key never means a number in
+one response and a list in another.
 
 `taxonomy` is the curated browse vocabulary with live counts. Render facets
 from it rather than hardcoding a copy — categories and tags are a governance
@@ -147,7 +150,7 @@ One plugin, with everything the web page renders.
     "downloads": 500,
     "views": 12,
     "rating":  { "average": 4.5, "count": 10 },
-    "comments": 3,
+    "comments_count": 3,
     "repository": {
       "url": "https://github.com/acme/weather",
       "label": "GitHub", "stars": 42,

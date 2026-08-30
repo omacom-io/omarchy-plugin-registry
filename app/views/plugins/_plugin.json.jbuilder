@@ -30,10 +30,14 @@ json.rating do
   json.average plugin.average_rating
   json.count plugin.ratings_count
 end
-# The counter cache, not a query — a card shows "12 comments" next to the
-# rating, and fetching a thread per card to count it is not a thing a grid can
-# afford. The thread itself is on the detail response.
-json.comments plugin.comments_count
+# The counter, not a query — a card shows "12 comments" next to the rating, and
+# fetching a thread per card to count it is not a thing a grid can afford.
+#
+# `comments_count` rather than `comments` because the detail response layers a
+# `comments` ARRAY on top of this same partial. One key meaning a number in one
+# response and a list in another is how a client ends up parsing a plugin two
+# different ways depending on where it found it.
+json.comments_count plugin.comments_count
 
 # Selected only by the directory queries — absent elsewhere rather than faked.
 json.first_published_at plugin.try(:first_published_at)

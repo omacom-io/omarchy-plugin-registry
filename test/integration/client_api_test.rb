@@ -106,6 +106,24 @@ class ClientApiTest < ActionDispatch::IntegrationTest
     assert_match(/expired/i, flash[:alert])
   end
 
+  # An account in the sensitive-change cooldown is exactly the one most likely
+  # to be looking at a code it did not ask for. Leaving it unable to refuse
+  # until the code expires on its own is the wrong way round.
+  test "denying works during the sensitive-change cooldown" do
+    post "/api/v1/device/code"
+    device_code, user_code = body["device_code"], body["user_code"]
+
+    @user.update!(sensitive_change_at: Time.current)
+    assert @user.in_publish_cooldown?
+
+    sign_in_as @user, second_factor_verified: false
+    post approve_device_path, params: { code: user_code, decision: "deny" }
+    assert_redirected_to dashboard_path
+
+    post "/api/v1/device/token", params: { device_code: device_code }
+    assert_equal "access_denied", body["error"]
+  end
+
   # The scope is decided when the row is created, so nothing the approving
   # browser sends can turn a client request into a publish token.
   test "an unknown scope asks for the flow that is gated hardest" do
@@ -241,14 +259,36 @@ class ClientApiTest < ActionDispatch::IntegrationTest
     assert_equal [ theirs.id ], body["comments"].map { |c| c["id"] }
   end
 
-  test "a hidden comment is not in the thread" do
+  test "a hidden comment is neither in the thread nor in the count" do
     token = sign_in_client
     @weather.comments.create!(user: @user, body: "Visible comment")
-    @weather.comments.create!(user: @user, body: "Hidden comment", hidden_at: Time.current)
+    hidden = @weather.comments.create!(user: @user, body: "Hidden comment")
+
+    get "/api/v1/plugins/acme/weather", headers: auth(token)
+    assert_equal 2, body["comments_count"], "both are visible so far"
+
+    hidden.hide!(actor: @user)
 
     get "/api/v1/plugins/acme/weather", headers: auth(token)
     assert_response :success
     assert_equal [ "Visible comment" ], body["comments"].map { |c| c["body"] }
+    # The count has to follow the thread. A card claiming two next to a thread
+    # of one is the same bug read from the other side.
+    assert_equal 1, body["comments_count"]
+    assert_equal 1, @weather.reload.comments_count
+  end
+
+  # The thread is truncated; the count is not. A client showing the array's
+  # length would make a busy plugin look quieter every time somebody opened it.
+  test "the count is the whole thread, not the page of it that came back" do
+    token = sign_in_client
+    limit = Api::V1::PluginScoped::COMMENT_LIMIT
+    (limit + 3).times { |i| @weather.comments.create!(user: @user, body: "Comment number #{i}") }
+
+    get "/api/v1/plugins/acme/weather", headers: auth(token)
+    assert_response :success
+    assert_equal limit, body["comments"].length
+    assert_equal limit + 3, body["comments_count"]
   end
 
   # The web form allows five comments an hour. A second door onto the same

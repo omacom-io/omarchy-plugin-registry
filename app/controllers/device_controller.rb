@@ -10,7 +10,7 @@
 # gates credential-shaped actions, and this is one.
 class DeviceController < ApplicationController
   before_action :require_recent_second_factor, only: :approve, if: :minting_publish_token?
-  before_action :require_no_sensitive_cooldown, only: :approve
+  before_action :require_no_sensitive_cooldown, only: :approve, unless: :denying?
 
   def show
     @user_code = params[:code]
@@ -57,7 +57,8 @@ class DeviceController < ApplicationController
   # business needing:
   #
   # - Denying. Someone who sees a code they did not ask for must be able to say
-  #   no immediately; gating the safe direction is backwards.
+  #   no immediately; gating the safe direction is backwards. The cooldown
+  #   skips it for the same reason.
   # - A client sign-in, which can only do what this browser session can already
   #   do without a second factor.
   # - A code that has expired or was already answered, where nothing will be
@@ -69,7 +70,13 @@ class DeviceController < ApplicationController
   # about scope, so the weaker path can only ever be reached by a row that was
   # created asking for a client token.
   def minting_publish_token?
-    return false if params[:decision] == "deny"
+    return false if denying?
     DeviceAuthorization.find_by_user_code(params[:code])&.for_publish? || false
   end
+
+  # Saying no mints nothing, so neither gate applies. An account in the
+  # sensitive-change cooldown is exactly the one most likely to be looking at
+  # a code it did not ask for, and leaving it unable to refuse until the code
+  # expires on its own is the wrong way round.
+  def denying? = params[:decision] == "deny"
 end

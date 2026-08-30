@@ -32,13 +32,27 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
   # --- directory -----------------------------------------------------------
 
+  # The detail response layers a comments ARRAY over the same partial, so the
+  # count needs its own name or a client parses a plugin two different ways
+  # depending on where it found it.
+  test "the count and the thread do not share a key" do
+    kim = User.create!(email_address: "kim@example.com", name: "Kim")
+    @weather.comments.create!(user: kim, body: "Runs well on two monitors.")
+
+    get plugin_path("acme", "weather", format: :json)
+    assert_response :success
+    plugin = body["plugin"]
+    assert_kind_of Array, plugin["comments"]
+    assert_equal 1, plugin["comments_count"]
+  end
+
   test "the comment count on a listing entry follows the thread" do
     @weather.comments.create!(user: User.create!(email_address: "kim@example.com", name: "Kim"),
       body: "Runs well on two monitors.")
 
     get directory_json_path
     assert_response :success
-    assert_equal 1, body["plugins"].sole["comments"]
+    assert_equal 1, body["plugins"].sole["comments_count"]
   end
 
   # A namespace seeded from the legacy marketplace has nobody behind it yet,
@@ -73,7 +87,7 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_equal "Widgets", entry["category_label"]
     assert_equal "omarchy plugin add acme/weather", entry["install_command"]
     # Counted, not fetched — a grid cannot afford a thread per card.
-    assert_equal 0, entry["comments"]
+    assert_equal 0, entry["comments_count"]
     assert_equal "http://registry.test/plugins/acme/weather", entry["url"]
 
     # The namespace's standing travels with every entry, so a grid can render
