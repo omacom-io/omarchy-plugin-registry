@@ -16,8 +16,7 @@ module Api
           return render json: { error: "value must be between 1 and 5" }, status: :unprocessable_entity
         end
 
-        rating = @plugin.ratings.find_or_initialize_by(user: current_user)
-        rating.update!(value: value)
+        upsert_rating(value)
         render json: social_payload
       end
 
@@ -26,6 +25,25 @@ module Api
       def destroy
         @plugin.ratings.find_by(user: current_user)&.destroy!
         render json: social_payload
+      end
+
+      private
+
+      # find-then-write races the one-rating-per-user index: two clicks landing
+      # together both see no row and both insert, and the loser gets a 500 for
+      # what is a perfectly ordinary request. Losing that race means the row
+      # now exists, so the retry finds it and updates — which is the answer
+      # either click deserved.
+      #
+      # Not covered by a test: reaching it means suspending one request between
+      # its find and its write, and a test that fakes that convincingly enough
+      # to be worth reading has not suggested itself. The web form has the same
+      # shape and the same exposure.
+      def upsert_rating(value)
+        rating = @plugin.ratings.find_or_initialize_by(user: current_user)
+        rating.update!(value: value)
+      rescue ActiveRecord::RecordNotUnique
+        @plugin.ratings.find_by!(user: current_user).update!(value: value)
       end
     end
   end

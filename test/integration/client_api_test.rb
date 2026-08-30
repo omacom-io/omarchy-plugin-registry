@@ -311,6 +311,43 @@ class ClientApiTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # "The same budget the web form gets" has to mean the same one, not a second
+  # one that happens to be the same size. Rails' rate_limit keys on the
+  # controller, so two controllers can never share a budget through it.
+  test "the web form and the app draw on one comment budget" do
+    token = sign_in_client
+
+    original_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    begin
+      3.times do |i|
+        post "/api/v1/plugins/acme/weather/comments", params: { body: "Through the app #{i}" },
+          headers: auth(token)
+        assert_response :created
+      end
+
+      # The browser session from signing in is still here, so the form is a
+      # door the same account can walk through.
+      2.times do |i|
+        post plugin_comments_path("acme", "weather"), params: { body: "Through the form #{i}" }
+        assert_redirected_to plugin_path("acme", "weather")
+      end
+
+      # Five all told, from both doors. The sixth is refused whichever one it
+      # arrives at.
+      post plugin_comments_path("acme", "weather"), params: { body: "One too many" }
+      assert_match(/slow down/i, flash[:alert])
+
+      post "/api/v1/plugins/acme/weather/comments", params: { body: "One too many" },
+        headers: auth(token)
+      assert_response :too_many_requests
+
+      assert_equal 5, @weather.comments.count
+    ensure
+      Rails.cache = original_cache
+    end
+  end
+
   # The budget belongs to the account, not to the credential — otherwise
   # signing in again is the cheap way to reset it.
   test "signing in again does not reset the comment budget" do

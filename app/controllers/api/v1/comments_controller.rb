@@ -2,21 +2,13 @@ module Api
   module V1
     class CommentsController < BaseController
       include PluginScoped
+      include CommentRateLimit
 
       before_action :authenticate_client_token!
+      # After authentication, because the budget is keyed on the account.
+      before_action :enforce_comment_budget, only: :create
       before_action :load_plugin!, only: :create
       after_action { response.headers["Cache-Control"] = "no-store" }
-
-      # The same budget the web form gets. A second door onto the same table
-      # must not be the cheap way around the first one's limit.
-      #
-      # Keyed on the account, not the token: signing in again would otherwise
-      # reset the budget, and a bearer token has no business being part of a
-      # cache key. Declared after the authentication filter so current_user is
-      # there to read.
-      rate_limit to: 5, within: 1.hour, only: :create, store: RATE_LIMIT_STORE,
-        by: -> { current_user&.id },
-        with: -> { render json: { error: "slow down — try again in a bit" }, status: :too_many_requests }
 
       def create
         comment = @plugin.comments.new(user: current_user, body: params[:body])
@@ -35,6 +27,15 @@ module Api
         plugin = comment.plugin
         comment.destroy!
         render json: social_payload(plugin)
+      end
+
+      private
+
+      # Literally the same budget as the web form, not a second one that
+      # happens to be the same size — see CommentRateLimit.
+      def enforce_comment_budget
+        return unless comment_budget_exceeded?
+        render json: { error: "slow down — try again in a bit" }, status: :too_many_requests
       end
     end
   end
