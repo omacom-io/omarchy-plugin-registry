@@ -9,8 +9,13 @@ module Api
 
       # The same budget the web form gets. A second door onto the same table
       # must not be the cheap way around the first one's limit.
+      #
+      # Keyed on the account, not the token: signing in again would otherwise
+      # reset the budget, and a bearer token has no business being part of a
+      # cache key. Declared after the authentication filter so current_user is
+      # there to read.
       rate_limit to: 5, within: 1.hour, only: :create, store: RATE_LIMIT_STORE,
-        by: -> { request.authorization.to_s },
+        by: -> { current_user&.id },
         with: -> { render json: { error: "slow down — try again in a bit" }, status: :too_many_requests }
 
       def create

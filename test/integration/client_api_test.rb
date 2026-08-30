@@ -246,6 +246,32 @@ class ClientApiTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The budget belongs to the account, not to the credential — otherwise
+  # signing in again is the cheap way to reset it.
+  test "signing in again does not reset the comment budget" do
+    first = sign_in_client
+    second = sign_in_client
+    refute_equal first, second, "the two sign-ins should be different tokens"
+
+    original_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    begin
+      3.times do |i|
+        post "/api/v1/plugins/acme/weather/comments", params: { body: "First token #{i}" },
+          headers: auth(first)
+        assert_response :created
+      end
+      3.times do |i|
+        post "/api/v1/plugins/acme/weather/comments", params: { body: "Second token #{i}" },
+          headers: auth(second)
+      end
+      assert_response :too_many_requests
+      assert_equal 5, @weather.comments.count
+    ensure
+      Rails.cache = original_cache
+    end
+  end
+
   # --- what a client may see ------------------------------------------------
 
   test "a plugin that has never been public is not there to read or write" do
