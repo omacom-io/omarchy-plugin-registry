@@ -142,6 +142,37 @@ class ClientApiTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
   end
 
+  # An org's plugins carry the org's name, not the names of its members, so a
+  # client matching a handle against a byline gets this wrong in both
+  # directions. The registry is the only thing that knows.
+  test "me/plugins lists what the account publishes, across namespaces" do
+    token = sign_in_client
+    @acme.plugins.create!(name: "clock", summary: "Ticks", latest_version: "1.0.0", kinds: [ "bar-widget" ])
+
+    # A namespace this account has nothing to do with.
+    stranger = Publisher.create!(name: "someone", kind: :personal)
+    stranger.plugins.create!(name: "theirs", summary: "Not mine", latest_version: "1.0.0", kinds: [ "bar-widget" ])
+
+    get "/api/v1/me/plugins", headers: auth(token)
+    assert_response :success
+    assert_equal [ "acme.clock", "acme.weather" ], body["plugins"]
+    assert_equal "no-store", response.headers["Cache-Control"]
+  end
+
+  test "me/plugins is empty for an account that publishes nothing" do
+    loner = User.create!(email_address: "loner@example.com", name: "Loner")
+    token = sign_in_client(user: loner)
+
+    get "/api/v1/me/plugins", headers: auth(token)
+    assert_response :success
+    assert_equal [], body["plugins"]
+  end
+
+  test "me/plugins needs a client token" do
+    get "/api/v1/me/plugins"
+    assert_response :unauthorized
+  end
+
   test "signing out revokes the token rather than only forgetting it" do
     token = sign_in_client
 

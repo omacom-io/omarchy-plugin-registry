@@ -30,6 +30,24 @@ module Api
         }
       end
 
+      # GET /api/v1/me/plugins — what this account publishes, as manifest ids.
+      #
+      # Membership is the registry's fact and a client cannot derive it from a
+      # listing: an org's plugins carry the org's name, not the names of the
+      # people in it, so matching a handle against a byline gets an
+      # organisation's work wrong in both directions. Asking is the only way
+      # to be right.
+      #
+      # Ids rather than whole entries, because the client already has the
+      # listing and only needs to know which rows are yours. That does mean a
+      # plugin of yours still in review is not among them — it is not in the
+      # public listing to be marked.
+      def plugins
+        ids = Plugin.where(publisher_id: current_user.publishers.select(:id))
+          .includes(:publisher).order(:name).map(&:manifest_id)
+        render json: { plugins: ids.sort }
+      end
+
       # Signing out in the app revokes the token rather than only forgetting
       # it. A token the client has thrown away but the registry still honours
       # is exactly the credential nobody notices leaking.

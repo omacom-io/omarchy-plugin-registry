@@ -117,6 +117,7 @@ Rails.application.routes.draw do
       # the anonymous, cacheable browse API; this is everything that depends
       # on who is asking. Client tokens only — see ApiToken#kind.
       get "me", to: "me#show"
+      get "me/plugins", to: "me#plugins"
       delete "session", to: "me#destroy"
       scope "plugins/:publisher/:plugin", constraints: { publisher: %r{[^/]+}, plugin: %r{[^/]+} } do
         get "/", to: "plugins#show", as: :client_plugin
