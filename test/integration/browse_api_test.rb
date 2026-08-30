@@ -32,6 +32,15 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
   # --- directory -----------------------------------------------------------
 
+  test "the comment count on a listing entry follows the thread" do
+    @weather.comments.create!(user: User.create!(email_address: "kim@example.com", name: "Kim"),
+      body: "Runs well on two monitors.")
+
+    get directory_json_path
+    assert_response :success
+    assert_equal 1, body["plugins"].sole["comments"]
+  end
+
   # A namespace seeded from the legacy marketplace has nobody behind it yet,
   # and a client must be able to say so instead of implying endorsement.
   test "an unclaimed publisher is said so on the listing entry" do
@@ -63,6 +72,8 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_equal "widgets", entry["category"]
     assert_equal "Widgets", entry["category_label"]
     assert_equal "omarchy plugin add acme/weather", entry["install_command"]
+    # Counted, not fetched — a grid cannot afford a thread per card.
+    assert_equal 0, entry["comments"]
     assert_equal "http://registry.test/plugins/acme/weather", entry["url"]
 
     # The namespace's standing travels with every entry, so a grid can render
