@@ -4,6 +4,14 @@
 # comments) is layered on by plugins/show.
 json.id plugin.manifest_id
 json.publisher plugin.publisher.name
+# The namespace's standing, not the plugin's. `claimed` false means the
+# listing was seeded from the legacy marketplace and nobody has proven control
+# of the source repo — a client that shows a trust badge needs this on the
+# listing, not only on the detail response, or it has to fetch a publisher per
+# card to find out. Flat keys rather than a nested object: `publisher` is a
+# string in this shape already and clients parse it as one.
+json.publisher_claimed plugin.publisher.claimed?
+json.publisher_verified plugin.publisher.verified?
 json.name plugin.name
 json.full_name plugin.full_name
 json.summary plugin.summary
@@ -22,6 +30,14 @@ json.rating do
   json.average plugin.average_rating
   json.count plugin.ratings_count
 end
+# The counter, not a query — a card shows "12 comments" next to the rating, and
+# fetching a thread per card to count it is not a thing a grid can afford.
+#
+# `comments_count` rather than `comments` because the detail response layers a
+# `comments` ARRAY on top of this same partial. One key meaning a number in one
+# response and a list in another is how a client ends up parsing a plugin two
+# different ways depending on where it found it.
+json.comments_count plugin.comments_count
 
 # Selected only by the directory queries — absent elsewhere rather than faked.
 json.first_published_at plugin.try(:first_published_at)

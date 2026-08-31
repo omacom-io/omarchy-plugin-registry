@@ -1,6 +1,7 @@
 class CommentsController < ApplicationController
-  rate_limit to: 5, within: 1.hour, only: :create,
-    with: -> { redirect_back fallback_location: root_path, alert: "Slow down — try again in a bit." }
+  include CommentRateLimit
+
+  before_action :enforce_comment_budget, only: :create
 
   def create
     plugin = find_plugin
@@ -21,6 +22,13 @@ class CommentsController < ApplicationController
   end
 
   private
+
+  # Shared with the client API, so posting through an app is not the cheap way
+  # around the form's limit.
+  def enforce_comment_budget
+    return unless comment_budget_exceeded?
+    redirect_back fallback_location: root_path, alert: "Slow down — try again in a bit."
+  end
 
   def find_plugin
     Publisher.find_by!(name: params[:publisher]).plugins.find_by!(name: params[:name])

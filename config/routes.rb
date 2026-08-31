@@ -111,6 +111,21 @@ Rails.application.routes.draw do
       post "device/code", to: "device#code"
       post "device/token", to: "device#token"
       post "trusted/exchange", to: "trusted#exchange"
+
+      # --- Client API ---
+      # What a signed-in desktop browser writes through. Reading a plugin is
+      # the anonymous, cacheable browse API; this is everything that depends
+      # on who is asking. Client tokens only — see ApiToken#kind.
+      get "me", to: "me#show"
+      get "me/plugins", to: "me#plugins"
+      delete "session", to: "me#destroy"
+      scope "plugins/:publisher/:plugin", constraints: { publisher: %r{[^/]+}, plugin: %r{[^/]+} } do
+        get "/", to: "plugins#show", as: :client_plugin
+        put "rating", to: "ratings#update", as: :client_plugin_rating
+        delete "rating", to: "ratings#destroy"
+        post "comments", to: "comments#create", as: :client_plugin_comments
+      end
+      delete "comments/:id", to: "comments#destroy", as: :client_comment
     end
   end
 

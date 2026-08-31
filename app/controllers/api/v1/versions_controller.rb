@@ -9,7 +9,7 @@ module Api
       rate_limit to: 30, within: 15.minutes, only: :create, store: RATE_LIMIT_STORE,
         with: -> { render json: { error: "slow_down" }, status: :too_many_requests }
 
-      before_action :authenticate_api_token!
+      before_action :authenticate_publish_token!
 
       MAX_BODY_BYTES = Registry::TarballInspector::MAX_TARBALL_BYTES
 

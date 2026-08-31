@@ -78,6 +78,13 @@ category:system  curated category
 }
 ```
 
+`comments_count` is how many **visible** comments a plugin has — hidden ones
+are not counted, so it agrees with the thread rather than with what moderation
+has taken down. It is there so a grid can show the count without fetching a
+thread per card. The thread itself is `comments` on the plugin response, which
+is an array; the count keeps its own name so one key never means a number in
+one response and a list in another.
+
 `taxonomy` is the curated browse vocabulary with live counts. Render facets
 from it rather than hardcoding a copy — categories and tags are a governance
 decision and the list changes without warning.
@@ -128,6 +135,8 @@ One plugin, with everything the web page renders.
   "plugin": {
     "id": "acme.weather",
     "publisher": "acme",
+    "publisher_claimed": true,
+    "publisher_verified": false,
     "name": "weather",
     "full_name": "acme/weather",
     "summary": "Forecast in the bar",
@@ -141,6 +150,7 @@ One plugin, with everything the web page renders.
     "downloads": 500,
     "views": 12,
     "rating":  { "average": 4.5, "count": 10 },
+    "comments_count": 3,
     "repository": {
       "url": "https://github.com/acme/weather",
       "label": "GitHub", "stars": 42,
@@ -171,6 +181,12 @@ One plugin, with everything the web page renders.
 - `install_command` is `null` when the plugin is not installable. Use
   `installable` to decide whether to offer an install button — a security hold
   or a plugin with nothing through review must not present one.
+- `publisher_claimed` / `publisher_verified` are the namespace's standing, not
+  the plugin's, and they are on every plugin entry — including in the
+  directory listing, so a grid can render a trust badge without fetching a
+  publisher per card. `publisher_claimed: false` means the listing was seeded
+  from the legacy marketplace and no author has proven control of the source
+  repo; say so rather than implying the namespace is endorsed.
 - `viewer` appears only for an authenticated session. Anonymous clients never
   see it, and those responses are the publicly cacheable ones.
 - `first_published_at` / `last_published_at` are populated on directory
