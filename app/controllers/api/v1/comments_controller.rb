@@ -5,9 +5,12 @@ module Api
       include CommentRateLimit
 
       before_action :authenticate_client_token!
-      # After authentication, because the budget is keyed on the account.
-      before_action :enforce_comment_budget, only: :create
+      # Budget after the plugin, not before it. It is keyed on the account, so
+      # it has to come after authentication — but spending a slot on a request
+      # that then 404s means a client with a stale id can lose the hour's five
+      # without posting anything.
       before_action :load_plugin!, only: :create
+      before_action :enforce_comment_budget, only: :create
       after_action { response.headers["Cache-Control"] = "no-store" }
 
       def create

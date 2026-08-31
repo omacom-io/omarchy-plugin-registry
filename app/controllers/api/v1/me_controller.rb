@@ -39,11 +39,15 @@ module Api
       # to be right.
       #
       # Ids rather than whole entries, because the client already has the
-      # listing and only needs to know which rows are yours. That does mean a
-      # plugin of yours still in review is not among them — it is not in the
-      # public listing to be marked.
+      # listing and only needs to know which rows are yours. Scoped to what
+      # the directory actually shows for the same reason: an id the listing
+      # cannot contain is one the client can never mark, so a plugin of yours
+      # still in review is not among them. Answering with it would hand the
+      # client ids it has nothing to match against and invite it to render a
+      # row it does not have.
       def plugins
-        ids = Plugin.where(publisher_id: current_user.publishers.select(:id))
+        ids = Plugin.directory_visible
+          .where(publisher_id: current_user.publishers.select(:id))
           .includes(:publisher).order(:name).map(&:manifest_id)
         render json: { plugins: ids.sort }
       end

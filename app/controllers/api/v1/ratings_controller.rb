@@ -39,11 +39,22 @@ module Api
       # its find and its write, and a test that fakes that convincingly enough
       # to be worth reading has not suggested itself. The web form has the same
       # shape and the same exposure.
+      # Re-sending the rating you already have is a no-op, not a write. Rating
+      # has an after_commit that recomputes the plugin's totals under a lock
+      # and touches updated_at, which is what the plugin's and the directory's
+      # ETags are cut from — so an unguarded update! let one client bust a
+      # shared cache as fast as it could loop, without ever changing a number.
+      # A star control also re-sends freely: clicking the star you already
+      # gave, or a second click landing after the first, arrives here as the
+      # same value.
       def upsert_rating(value)
         rating = @plugin.ratings.find_or_initialize_by(user: current_user)
+        return if rating.persisted? && rating.value == value
+
         rating.update!(value: value)
       rescue ActiveRecord::RecordNotUnique
-        @plugin.ratings.find_by!(user: current_user).update!(value: value)
+        existing = @plugin.ratings.find_by!(user: current_user)
+        existing.update!(value: value) unless existing.value == value
       end
     end
   end

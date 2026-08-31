@@ -159,6 +159,19 @@ class ClientApiTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
   end
 
+  # The ids exist to mark rows the client already has. One the directory does
+  # not carry is one it can never mark, so answering with it only invites the
+  # client to render a row it has nothing for.
+  test "me/plugins leaves out a plugin the directory does not show" do
+    token = sign_in_client
+    @acme.plugins.create!(name: "unreleased", summary: "Still in review",
+      latest_version: nil, kinds: [ "bar-widget" ])
+
+    get "/api/v1/me/plugins", headers: auth(token)
+    assert_response :success
+    assert_equal [ "acme.weather" ], body["plugins"]
+  end
+
   test "me/plugins is empty for an account that publishes nothing" do
     loner = User.create!(email_address: "loner@example.com", name: "Loner")
     token = sign_in_client(user: loner)
@@ -217,6 +230,22 @@ class ClientApiTest < ActionDispatch::IntegrationTest
   end
 
   # --- rating ---------------------------------------------------------------
+
+  # The plugin's updated_at is what its ETag and the directory's are cut from,
+  # so a write that changes no number must not invalidate a shared cache. A
+  # star control re-sends the value it already has freely.
+  test "rating a plugin the value it already has changes nothing" do
+    token = sign_in_client
+    put "/api/v1/plugins/acme/weather/rating", params: { value: 4 }, headers: auth(token)
+    assert_response :success
+    before = @weather.reload.updated_at
+
+    put "/api/v1/plugins/acme/weather/rating", params: { value: 4 }, headers: auth(token)
+    assert_response :success
+    assert_equal 4, body["rating"]["mine"]
+    assert_equal before, @weather.reload.updated_at,
+      "a no-op rating touched the plugin and busted its cache"
+  end
 
   test "rating a plugin, moving the rating, and clearing it" do
     token = sign_in_client

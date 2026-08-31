@@ -121,6 +121,25 @@ failed write.
 memberships only. The personal one is the account's own handle — a better
 answer than anything a client can infer from what is installed locally.
 
+## `GET /api/v1/me/plugins`
+
+Which plugins this account publishes, as manifest ids.
+
+```json
+{ "plugins": ["acme.weather", "kimrivera.clock"] }
+```
+
+A client cannot work this out from a listing. An organisation's plugins carry
+the organisation's name and not the names of its members, so matching a handle
+against a byline gets an org's work wrong in both directions — it claims other
+people's plugins for whoever shares a handle with the namespace, and disowns
+the ones published under a name you share with colleagues. Asking is the only
+way to be right.
+
+Scoped to what the directory shows, so a plugin still in review is not in the
+list. The ids exist to mark rows the client already has; one the listing cannot
+contain is one it could never mark.
+
 ## `DELETE /api/v1/session`
 
 Signing out. Revokes **this** token and answers `204`; other devices keep
