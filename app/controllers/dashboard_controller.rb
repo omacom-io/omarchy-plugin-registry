@@ -5,6 +5,8 @@ class DashboardController < ApplicationController
   def show
     @user = Current.user
     @publishers = @user.publishers.includes(:plugins)
+    @pending_invites = @user.memberships.pending.includes(:publisher)
     @tokens = @user.api_tokens.usable.order(created_at: :desc)
+    @trusted_publishers = TrustedPublisher.where(publisher: @publishers).includes(:publisher)
   end
 end

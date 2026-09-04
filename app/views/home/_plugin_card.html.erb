@@ -1,31 +1,99 @@
-<%= link_to plugin_path(plugin.publisher.name, plugin.name), class: "plugin-card" do %>
-  <% if plugin.preview? %>
-    <img class="plugin-card__preview" src="<%= rails_storage_proxy_path(plugin.preview_card) %>"
-      alt="" loading="lazy" decoding="async"
-      width="<%= plugin.preview_card_meta["width"] %>" height="<%= plugin.preview_card_meta["height"] %>">
-  <% else %>
-    <div class="plugin-card__preview plugin-card__preview--fallback" aria-hidden="true">
-      <span class="plugin-card__monogram"><%= plugin.name.first(2) %></span>
-      <span class="diamond">◆</span>
+<article class="plugin-card" data-controller="card-flip"
+         data-action="click->card-flip#toggle keydown->card-flip#keydown">
+  <div class="plugin-card__inner">
+    <div class="plugin-card__face plugin-card__face--front" data-card-flip-target="front">
+      <% if plugin.preview? %>
+        <span class="plugin-card__screen">
+          <img class="plugin-card__preview" src="<%= rails_storage_proxy_path(plugin.preview_card) %>"
+            alt="" loading="lazy" decoding="async"
+            width="<%= plugin.preview_card_meta["width"] %>" height="<%= plugin.preview_card_meta["height"] %>">
+        </span>
+      <% else %>
+        <span class="plugin-card__screen plugin-card__screen--session" aria-hidden="true" translate="no">
+          <span class="ln"><s>$</s> omarchy plugin add <%= plugin.publisher.name %>/<%= plugin.name %></span>
+          <% if plugin.latest_version %>
+            <span class="ln ok"><b>[ OK ]</b> v<%= plugin.latest_version %> · signed · checksummed</span>
+          <% else %>
+            <span class="ln pending"><b>[ .. ]</b> pending review</span>
+          <% end %>
+          <span class="cur"></span>
+        </span>
+      <% end %>
+
+      <span class="plugin-card__body">
+        <span class="plugin-card__pub" translate="no"><%= plugin.publisher.name %>/</span>
+        <h3 translate="no"><%= link_to plugin.name, plugin_path(plugin.publisher.name, plugin.name), class: "plugin-card__title-link" %></h3>
+        <span class="plugin-card__chips" translate="no">
+          <b><%= plugin_card_label(plugin) %></b>
+          <% plugin.tags.first(Registry::Taxonomy::MAX_TAGS).each do |tag| %>
+            <span><%= tag %></span>
+          <% end %>
+        </span>
+        <% if plugin.try(:latest_sha256).present? %>
+          <span class="plugin-card__sha" translate="no">sha256:<%= plugin.latest_sha256.first(12) %>…</span>
+        <% end %>
+        <span class="plugin-card__meta">
+          <% if plugin.latest_version %>
+            <span class="dl"><%= compact_number(plugin.downloads_count) %> ↓</span>
+            <span translate="no">· v<%= plugin.latest_version %></span>
+            <% if plugin.repo_stars.to_i.positive? %>
+              <span title="GitHub stars">· ★ <%= compact_number(plugin.repo_stars) %></span>
+            <% end %>
+            <%= card_activity_badge(plugin) %>
+          <% else %>
+            <span class="badge badge--warning">Under review</span>
+          <% end %>
+          <button type="button" class="plugin-card__flip" aria-expanded="false"
+                  aria-controls="plugin-card-back-<%= plugin.id %>" aria-label="Show details for <%= plugin.full_name %>"
+                  data-card-flip-target="toggle" data-action="card-flip#toggleButton">
+            <span aria-hidden="true">⟲</span>
+          </button>
+        </span>
+      </span>
     </div>
-  <% end %>
-  <h3><span class="ns"><%= plugin.publisher.name %>/</span><%= plugin.name %></h3>
-  <p><%= plugin.summary %></p>
-  <div class="plugin-card__meta">
-    <% if plugin.latest_version %>
-      <span><span class="diamond">◆</span> v<%= plugin.latest_version %></span>
-      <span><%= compact_number(plugin.downloads_count) %> downloads</span>
-      <% if plugin.repo_stars.to_i.positive? %>
-        <span title="GitHub stars">★ <%= compact_number(plugin.repo_stars) %></span>
+
+    <div id="plugin-card-back-<%= plugin.id %>" class="plugin-card__face plugin-card__face--back"
+         data-card-flip-target="back" aria-hidden="true" inert>
+      <span class="plugin-card__pub" translate="no"><%= plugin.publisher.name %>/</span>
+      <h3 translate="no"><%= plugin.name %></h3>
+      <p class="plugin-card__summary"><%= plugin.summary %></p>
+
+      <% if (series = spark_series(plugin.id)) %>
+        <span class="plugin-card__graph">
+          <%= sparkline_svg(series) %>
+          <span class="lab">installs · <%= PluginCardData::SPARK_DAYS %>d</span>
+        </span>
       <% end %>
-      <% if plugin.category %>
-        <span><%= Registry::Taxonomy.label(plugin.category) %></span>
-      <% elsif plugin.kinds.any? %>
-        <span><%= plugin.kinds.first %></span>
-      <% end %>
-      <%= card_activity_badge(plugin) %>
-    <% else %>
-      <span class="badge badge--warning">Under review</span>
-    <% end %>
+
+      <span class="plugin-card__facts" translate="no">
+        <span><i>version</i><b>v<%= plugin.latest_version || "—" %></b></span>
+        <span><i>installs</i><b><%= number_with_delimiter(plugin.downloads_count) %></b></span>
+        <% if plugin.repo_stars.to_i.positive? %>
+          <span><i>stars</i><b>★ <%= compact_number(plugin.repo_stars) %></b></span>
+        <% end %>
+        <% if plugin.try(:last_published_at).present? %>
+          <span><i>updated</i><b><%= time_ago_in_words(Time.zone.parse(plugin.last_published_at.to_s)) %> ago</b></span>
+        <% end %>
+      </span>
+
+      <span class="plugin-card__verify <%= plugin.latest_version ? "ok" : "pending" %>" translate="no">
+        <% if plugin.latest_version %>
+          <b>[ OK ]</b> signed · checksummed
+        <% else %>
+          <b>[ .. ]</b> pending review
+        <% end %>
+      </span>
+
+      <span class="plugin-card__actions">
+        <%= link_to plugin_path(plugin.publisher.name, plugin.name), class: "plugin-card__go" do %>
+          details <span aria-hidden="true">→</span>
+        <% end %>
+        <% if plugin.repository_url.present? %>
+          <a class="plugin-card__src" href="<%= plugin.repository_url %>" target="_blank" rel="noopener noreferrer">source <span aria-hidden="true">↗</span></a>
+        <% end %>
+        <button type="button" class="plugin-card__back-toggle" aria-label="Hide details for <%= plugin.full_name %>"
+                data-action="card-flip#toggleButton">← front</button>
+      </span>
+    </div>
   </div>
-<% end %>
+</article>

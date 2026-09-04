@@ -1,8 +1,10 @@
+<% omarchy_sync_url = omarchy_theme_path if request.local? && Registry::OmarchyTheme.available? %>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= ApplicationHelper::DEFAULT_THEME %>">
   <head>
     <title><%= content_for(:title) || "Omarchy Plugins" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#1a1b26">
     <meta name="description" content="<%= content_for(:meta_description) || ApplicationHelper::DEFAULT_META_DESCRIPTION %>">
     <%= content_for(:social) || social_meta(title: content_for(:title) || "Omarchy Plugins",
           description: ApplicationHelper::DEFAULT_META_DESCRIPTION, image_path: og_site_path, url_path: request.path) %>
@@ -12,67 +14,163 @@
     <%= yield :head %>
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <%= preload_link_tag "JetBrainsMono-Regular.woff2", as: :font, type: "font/woff2", crossorigin: "anonymous" %>
-    <%= preload_link_tag "ClashGrotesk-Medium.woff2", as: :font, type: "font/woff2", crossorigin: "anonymous" %>
+    <%= preload_link_tag "JetBrainsMono-Bold.woff2", as: :font, type: "font/woff2", crossorigin: "anonymous" %>
+    <%= javascript_tag nonce: true do %>
+      try {
+        var root = document.documentElement;
+        var themes = <%= raw json_escape(ApplicationHelper::THEMES.to_json) %>;
+        var mode = localStorage.getItem("registry-theme-mode");
+        var theme = localStorage.getItem("registry-theme");
+        var legacyOverride = localStorage.getItem("registry-theme-override-revision");
+        var systemAvailable = <%= omarchy_sync_url.present?.to_json %>;
+        if (mode !== "system" && mode !== "manual") {
+          mode = themes.includes(theme) || legacyOverride ? "manual" : (systemAvailable ? "system" : "manual");
+          localStorage.setItem("registry-theme-mode", mode);
+        }
+
+        if (mode === "manual" && themes.includes(theme)) {
+          root.dataset.theme = theme;
+        } else if (mode === "manual" && theme) {
+          localStorage.removeItem("registry-theme");
+          localStorage.removeItem("registry-theme-override-revision");
+        } else if (mode === "system") {
+          localStorage.removeItem("registry-theme");
+          localStorage.removeItem("registry-theme-override-revision");
+          var payload = JSON.parse(localStorage.getItem("registry-system-theme") || "null");
+          var keys = ["background", "foreground", "cursor"];
+          for (var index = 0; index < 16; index += 1) keys.push("color" + index);
+          var valid = payload && typeof payload.name === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(payload.name) &&
+            typeof payload.revision === "string" && /^[0-9a-f]{64}$/.test(payload.revision) &&
+            (payload.theme === null || (payload.theme === payload.name && themes.includes(payload.theme))) &&
+            payload.colors && keys.every(function(key) { return /^#[0-9a-f]{6}$/.test(payload.colors[key]); });
+          if (!valid && !systemAvailable) {
+            mode = "manual";
+            localStorage.setItem("registry-theme-mode", mode);
+          } else if (valid && payload.theme) {
+            root.dataset.theme = payload.theme;
+            for (var stockSlot = 0; stockSlot < 16; stockSlot += 1) {
+              root.style.setProperty("--ansi-" + String(stockSlot).padStart(2, "0") + "-slot", payload.colors["color" + stockSlot]);
+            }
+            root.style.setProperty("--terminal-cursor", payload.colors.cursor);
+          } else if (valid) {
+            var colors = payload.colors;
+            var properties = {
+              "--bg": colors.background,
+              "--cell": "color-mix(in srgb, " + colors.background + " 96%, " + colors.foreground + ")",
+              "--cell-2": "color-mix(in srgb, " + colors.background + " 91%, " + colors.foreground + ")",
+              "--text": colors.foreground,
+              "--text-soft": "color-mix(in srgb, " + colors.foreground + " 84%, " + colors.background + ")",
+              "--text-muted": "color-mix(in srgb, " + colors.foreground + " 72%, " + colors.background + ")",
+              "--faint": "color-mix(in srgb, " + colors.foreground + " 52%, " + colors.background + ")",
+              "--line": "color-mix(in srgb, " + colors.foreground + " 12%, transparent)",
+              "--line-strong": "color-mix(in srgb, " + colors.foreground + " 22%, transparent)",
+              "--accent": colors.color4, "--accent-soft": "color-mix(in srgb, " + colors.color4 + " 13%, transparent)",
+              "--success": colors.color2, "--warning": colors.color3, "--danger": colors.color1,
+              "--success-soft": "color-mix(in srgb, " + colors.color2 + " 13%, transparent)",
+              "--warning-soft": "color-mix(in srgb, " + colors.color3 + " 13%, transparent)",
+              "--danger-soft": "color-mix(in srgb, " + colors.color1 + " 13%, transparent)",
+              "--info": colors.color4, "--cyan": colors.color6, "--magenta": colors.color5,
+              "--break": colors.background, "--terminal-cursor": colors.cursor,
+              "--accent-ink": "var(--ansi-04)", "--cyan-ink": "var(--ansi-06)",
+              "--danger-ink": "var(--ansi-01)", "--search-accent-ink": "var(--ansi-04)"
+            };
+            for (var slot = 0; slot < 16; slot += 1) {
+              properties["--ansi-" + String(slot).padStart(2, "0") + "-slot"] = colors["color" + slot];
+            }
+            var luminance = function(color) {
+              var channels = [1, 3, 5].map(function(offset) {
+                var value = parseInt(color.slice(offset, offset + 2), 16) / 255;
+                return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+              });
+              return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+            };
+            properties["--on-accent"] = luminance(colors.color4) > 0.42 ? "#000000" : "#ffffff";
+            Object.entries(properties).forEach(function(entry) { root.style.setProperty(entry[0], entry[1]); });
+            root.style.colorScheme = luminance(colors.background) > 0.45 ? "light" : "dark";
+            root.dataset.theme = "omarchy-live";
+          }
+        }
+      } catch (error) {}
+    <% end %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
   <body>
-    <header class="site-header">
-      <div class="site-header__inner container">
-        <%= link_to root_path, class: "site-header__brand" do %>
-          <%= render "shared/logo", class: "site-header__logo" %>
-          <span class="site-header__wordmark">Omarchy <em>Plugins</em></span>
-        <% end %>
-        <nav class="site-header__nav">
-          <%= link_to "Plugins", root_path %>
-          <%= link_to "Publishing", publishing_path %>
-          <%= link_to "Governance", governance_path %>
-          <% if authenticated? %>
-            <% if Current.user&.admin? %><%= link_to "Admin", admin_root_path %><% end %>
-            <%= link_to "Dashboard", dashboard_path, class: "button" %>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="rail">
+      <header class="band" data-controller="theme"
+              <%= tag.attributes("data-theme-omarchy-url-value": omarchy_sync_url) if omarchy_sync_url %>>
+        <div class="nav">
+          <%
+            plugins_nav_active = %w[home plugins publishers claims].include?(controller_path)
+            governance_nav_active = current_page?(governance_path) || controller_path == "audit_log"
+            publishing_nav_active = current_page?(publishing_path)
+            admin_nav_active = controller_path.start_with?("admin/")
+          %>
+          <nav class="nav__links" aria-label="Primary navigation">
+            <span class="nav__path">
+              <%= link_to "plugins", root_path, class: [ "nav__section", { "nav__section--active": plugins_nav_active } ], aria: (plugins_nav_active ? { current: current_page?(root_path) ? "page" : "location" } : {}) %><i aria-hidden="true">/</i>
+              <%= link_to "governance", governance_path, class: [ "nav__section", { "nav__section--active": governance_nav_active } ], aria: (governance_nav_active ? { current: (current_page?(governance_path) ? "page" : "location") } : {}) %><i aria-hidden="true">/</i>
+              <%= link_to "publishing", publishing_path, class: [ "nav__section", { "nav__section--active": publishing_nav_active } ], aria: (publishing_nav_active ? { current: "page" } : {}) %>
+              <% if authenticated? && Current.user&.admin? %>
+                <i aria-hidden="true">/</i><%= link_to "admin", admin_root_path, class: [ "nav__section", { "nav__section--active": admin_nav_active } ], aria: (admin_nav_active ? { current: current_page?(admin_root_path) ? "page" : "location" } : {}) %>
+              <% end %>
+            </span>
+            <button type="button" class="theme-toggle" data-theme-target="toggle" data-action="theme#toggle"
+                    aria-expanded="false" title="Choose color theme">
+              <i aria-hidden="true"></i><span class="theme-toggle__prefix">theme=</span><span class="theme-toggle__label" data-theme-target="toggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span><span class="theme-toggle__mobile-label" data-theme-target="mobileToggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span>
+            </button>
+            <% if authenticated? %>
+              <% account_nav_active = %w[dashboard orgs onboarding settings/two_factor settings/passkeys].include?(controller_path) %>
+              <%= link_to "account/dashboard →", dashboard_path, class: "nav__account",
+                    aria: (account_nav_active ? { current: (current_page?(dashboard_path) ? "page" : "location") } : {}) %>
+            <% else %>
+              <%= link_to "sign-in →", new_session_path, class: "nav__account", aria: (current_page?(new_session_path) ? { current: "page" } : {}) %>
+            <% end %>
+          </nav>
+        </div>
+        <%= render "shared/theme_picker" %>
+      </header>
+
+      <% if authenticated? && Current.user&.recovery_requested_at %>
+        <div class="notice-banner notice-banner--danger">
+          <strong>Account recovery in progress.</strong>
+          <% if Current.user.recovery_ready? %>
+            The window is open — factor management is unlocked.
           <% else %>
-            <%= link_to "Sign in", new_session_path, class: "button" %>
+            Factor management unlocks <%= time_ago_in_words(Current.user.recovery_requested_at + User::RECOVERY_DELAY) %> from now.
           <% end %>
-        </nav>
-      </div>
-    </header>
+          Didn't request this? <%= link_to "Verify a factor now", step_up_path %> to cancel it immediately.
+        </div>
+      <% end %>
 
-    <% if authenticated? && Current.user&.recovery_requested_at %>
-      <div class="notice-banner notice-banner--danger">
-        <strong>Account recovery in progress.</strong>
-        <% if Current.user.recovery_ready? %>
-          The window is open — factor management is unlocked.
-        <% else %>
-          Factor management unlocks <%= time_ago_in_words(Current.user.recovery_requested_at + User::RECOVERY_DELAY) %> from now.
-        <% end %>
-        Didn't request this? <%= link_to "Verify a factor now", step_up_path %> to cancel it immediately.
-      </div>
-    <% end %>
+      <% if flash[:notice] || flash[:alert] || (Rails.env.development? && flash[:dev_login_code]) %>
+        <div class="flashes">
+          <% if flash[:notice] %><p class="flash flash--notice"><%= flash[:notice] %></p><% end %>
+          <% if flash[:alert] %><p class="flash flash--alert"><%= flash[:alert] %></p><% end %>
+          <% if Rails.env.development? && flash[:dev_login_code] %>
+            <p class="flash flash--notice">DEV — your sign-in code is <code><%= flash[:dev_login_code] %></code></p>
+          <% end %>
+        </div>
+      <% end %>
 
-    <% if flash[:notice] || flash[:alert] || (Rails.env.development? && flash[:dev_login_code]) %>
-      <div class="flashes">
-        <% if flash[:notice] %><p class="flash flash--notice"><%= flash[:notice] %></p><% end %>
-        <% if flash[:alert] %><p class="flash flash--alert"><%= flash[:alert] %></p><% end %>
-        <% if Rails.env.development? && flash[:dev_login_code] %>
-          <p class="flash flash--notice">DEV — your sign-in code is <code><%= flash[:dev_login_code] %></code></p>
-        <% end %>
-      </div>
-    <% end %>
+      <main id="main-content" tabindex="-1"><%= yield %></main>
 
-    <main><%= yield %></main>
-
-    <footer class="site-footer">
-      <div class="site-footer__inner">
-        <%= render "shared/logo", class: "site-footer__logo" %>
-        <nav>
-          <%= link_to "Governance", governance_path %>
-          <%= link_to "Transparency log", audit_log_path %>
-          <%= link_to "Publishing guide", publishing_path %>
-          <a href="https://omarchy.org">omarchy.org</a>
-        </nav>
-        <p class="site-footer__legal">plugins.omarchy.org · An <a href="https://www.omacon.org">Omacom</a> project · <span class="katakana">オマコム</span></p>
-      </div>
-    </footer>
+      <footer class="statusfoot">
+        <div class="statusfoot__end">
+          <a href="https://www.omacon.org" class="statusfoot__project" aria-label="Omacom">
+            <%= render "shared/logo", class: "statusfoot__omacom", id_suffix: "footer" %>
+            <span class="lab">an <span class="statusfoot__project-name">Omacom</span> project <span class="statusfoot__katakana" translate="no">オマコム</span></span>
+          </a>
+          <a href="https://plugins.omarchy.org" class="statusfoot__registry" translate="no">plugins.omarchy.org</a>
+          <span class="statusfoot__trademark lab">
+            <a href="https://omarchy.org" class="statusfoot__omarchy-link" aria-label="Omarchy"><%= tag.span "", class: "statusfoot__omarchy-wordmark", aria: { hidden: true }, style: "--wordmark-mask: url(#{asset_path('omarchy-wordmark.svg')})" %></a>
+            <span>PLUGINS</span>
+          </span>
+        </div>
+      </footer>
+    </div>
+    <%= render "shared/mobile_navigation" %>
   </body>
 </html>

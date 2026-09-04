@@ -8,9 +8,14 @@
 
 <%= render "shared/notices", notices: @notices %>
 
-<div class="page-head">
+<div class="page-head page-head--plugin" data-controller="detail-back"
+     data-detail-back-fallback-url-value="<%= root_path(anchor: 'browse') %>"
+     data-action="keydown@window->detail-back#back" aria-keyshortcuts="Backspace">
   <div class="container">
-    <p class="eyebrow"><%= @plugin.kinds.join(" · ") %></p>
+    <div class="page-head__topline">
+      <span class="page-head__tab"><%= plugin_card_label(@plugin) %></span>
+      <span class="page-head__index" translate="no">PLG-<%= @plugin.id.to_s.rjust(3, "0") %></span>
+    </div>
     <h1><span class="ns"><%= link_to @publisher.name, publisher_path(@publisher.name) %>/</span><%= @plugin.name %></h1>
     <p class="summary"><%= @plugin.summary %></p>
     <% if @plugin.category || @plugin.tags.any? %>
@@ -23,36 +28,65 @@
         <% end %>
       </div>
     <% end %>
-    <div class="page-head__row">
-      <% if @latest %><%= state_badge(:published) %><span class="muted">v<%= @latest.version %> · <%= @latest.license.presence || "No license" %></span><% end %>
-      <span class="muted"><%= compact_number(@plugin.downloads_count) %> downloads · <%= compact_number(@plugin.views_count) %> views</span>
+    <div class="page-head__strip">
+      <% if @latest %>
+        <%= state_badge(:published) %>
+        <span translate="no"><span class="diamond" aria-hidden="true">◆</span> v<%= @latest.version %></span>
+        <span><%= @latest.license.presence || "No license" %></span>
+      <% end %>
+      <span><%= compact_number(@plugin.downloads_count) %> downloads</span>
+      <span><%= compact_number(@plugin.views_count) %> views</span>
       <% if @plugin.average_rating %>
-        <span class="rating-summary"><span class="diamond">◆</span> <%= @plugin.average_rating %>/5
+        <span class="rating-summary"><span class="diamond" aria-hidden="true">◆</span> <%= @plugin.average_rating %>/5
           <span class="muted">(<%= @plugin.ratings_count %>)</span></span>
       <% end %>
+      <% if @plugin.kinds.any? %><span translate="no"><%= @plugin.kinds.join(" · ") %></span><% end %>
     </div>
+    <% if @latest && @plugin.active? %>
+      <div class="install-cmd page-head__install" data-controller="clipboard"
+           data-clipboard-text-value="omarchy plugin add <%= @plugin.full_name %>">
+        <span class="install-cmd__text"><span class="prompt">$</span> omarchy plugin add <%= @plugin.full_name %></span>
+        <%= render "shared/copy_button", label: "Copy install command", text: "copy",
+              copied_text: "copied", copied_label: "Install command copied" %>
+      </div>
+    <% else %>
+      <p class="muted page-head__install">Not installable — no version has cleared review.</p>
+    <% end %>
   </div>
 </div>
 
 <div class="plugin-layout container">
   <article>
-    <% if @plugin.preview? && @plugin.preview_detail.attached? %>
+    <%
+      preview_attachment = if @plugin.preview?
+        @plugin.preview_detail.attached? ? @plugin.preview_detail : @plugin.preview_card
+      end
+      preview_dimensions = if preview_attachment
+        @plugin.preview_detail.attached? ? @plugin.preview_detail_meta : @plugin.preview_card_meta
+      else
+        {}
+      end
+    %>
+    <% if preview_attachment %>
       <div data-controller="lightbox">
         <button class="plugin-preview" type="button" data-action="lightbox#open"
           aria-label="Enlarge <%= @plugin.full_name %> preview">
-          <img src="<%= rails_storage_proxy_path(@plugin.preview_detail) %>"
+          <img src="<%= rails_storage_proxy_path(preview_attachment) %>"
             alt="<%= @plugin.full_name %> preview" decoding="async"
-            width="<%= @plugin.preview_detail_meta["width"] %>" height="<%= @plugin.preview_detail_meta["height"] %>">
+            width="<%= preview_dimensions["width"] %>" height="<%= preview_dimensions["height"] %>">
+          <span class="plugin-preview__zoom" aria-hidden="true">zoom ↗</span>
         </button>
         <dialog class="lightbox" data-lightbox-target="dialog" data-action="click->lightbox#backdropClose"
           aria-label="<%= @plugin.full_name %> preview">
           <button class="lightbox__close" type="button" data-action="lightbox#close" aria-label="Close preview">×</button>
-          <img src="<%= rails_storage_proxy_path(@plugin.preview_detail) %>"
-            alt="<%= @plugin.full_name %> preview" loading="lazy" decoding="async">
+          <img src="<%= rails_storage_proxy_path(preview_attachment) %>"
+            alt="<%= @plugin.full_name %> preview" loading="lazy" decoding="async"
+            width="<%= preview_dimensions["width"] %>" height="<%= preview_dimensions["height"] %>">
         </dialog>
       </div>
     <% end %>
 
+    <div class="boxtitle article-title"><span class="glyph" aria-hidden="true">┌─ </span><b>Description</b></div>
     <div class="readme" data-controller="readme-code">
       <% if @plugin.readme.present? %>
         <%= render_markdown @plugin.readme, asset_base: readme_asset_base(@latest) %>
@@ -114,18 +148,6 @@
 
   <aside class="sidebar">
     <section>
-      <h4>Install</h4>
-      <% if @latest && @plugin.active? %>
-        <div class="install-cmd" data-controller="clipboard"
-             data-clipboard-text-value="omarchy plugin add <%= @plugin.full_name %>">
-          <span class="install-cmd__text"><span class="prompt">$</span> omarchy plugin add <%= @plugin.full_name %></span>
-          <%= render "shared/copy_button", label: "Copy install command" %>
-        </div>
-      <% else %>
-        <p class="muted">Not installable — no version has cleared review.</p>
-      <% end %>
-    </section>
-    <section>
       <h4>Details</h4>
       <dl>
         <dt>Plugin id</dt><dd><code><%= @plugin.manifest_id %></code></dd>
@@ -159,27 +181,7 @@
       <%= render "capabilities", version: @latest %>
     <% end %>
     <% if @latest&.provenance.present? %>
-      <section>
-        <h4>Provenance</h4>
-        <% if @latest.provenance["source"] == "legacy-marketplace" %>
-          <dl>
-            <dt>Imported snapshot</dt>
-            <% if @latest.provenance["repository"].present? && @latest.provenance["sha"].present? %>
-              <dd><a href="https://github.com/<%= @latest.provenance["repository"] %>/tree/<%= @latest.provenance["sha"] %>"><%= @latest.provenance["repository"] %>@<%= @latest.provenance["sha"].to_s.first(7) %></a></dd>
-            <% else %>
-              <dd><%= @latest.provenance["repository"] %></dd>
-            <% end %>
-            <dt>Via</dt><dd>Seeded from the legacy marketplace listing (the commit its review recorded)</dd>
-          </dl>
-        <% else %>
-          <dl>
-            <dt>CI identity</dt>
-            <dd><a href="https://github.com/<%= @latest.provenance["repository"] %>/commit/<%= @latest.provenance["sha"] %>"><%= @latest.provenance["repository"] %>@<%= @latest.provenance["sha"].to_s.first(7) %></a></dd>
-            <dt>Workflow</dt><dd><code><%= @latest.provenance["workflow"].to_s.split("@").first.to_s.split("/").last %></code></dd>
-            <dt>Via</dt><dd>OIDC trusted publishing (job identity, not a build attestation)</dd>
-          </dl>
-        <% end %>
-      </section>
+      <%= render "plugins/provenance", provenance: @latest.provenance %>
     <% end %>
     <section>
       <h4>Versions</h4>

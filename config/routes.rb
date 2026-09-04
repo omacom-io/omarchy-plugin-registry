@@ -44,6 +44,8 @@ Rails.application.routes.draw do
   # tag, page); no second HTML directory to keep canonical.
   get "plugins.json", to: "home#index", as: :directory_json,
     defaults: { format: "json" }, format: false
+  get "omarchy-theme.json", to: "omarchy_themes#show", as: :omarchy_theme,
+    defaults: { format: "json" }, format: false
   get "plugins/:publisher/:name", to: "plugins#show", as: :plugin
   # The version segment is dotted (semver), so the router would otherwise
   # swallow a ".json" suffix into :version and 404 instead of negotiating the

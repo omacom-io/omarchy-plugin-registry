@@ -17,14 +17,17 @@ module ConditionalGet
   # by viewer, and HTML is never shareable at all: csrf_meta_tags writes a
   # token into the session, so every HTML render carries a Set-Cookie that a
   # shared cache must not store.
-  def freshen(*sources)
+  def freshen(*sources, last_modified: true)
     parts = sources.flatten.compact
     viewer_specific = authenticated?
     shareable = request.format.json? && !viewer_specific
     etag = parts.map { |part| part.try(:cache_key_with_version) || part }
     etag << Current.user&.id if viewer_specific
+    # Some projections include aggregate values that have no reliable shared
+    # timestamp. They opt out rather than let If-Modified-Since return a stale 304.
+    modified_at = parts.filter_map { |part| part.try(:updated_at) }.max if last_modified
     fresh_when etag: etag,
-      last_modified: parts.filter_map { |part| part.try(:updated_at) }.max,
+      last_modified: modified_at,
       public: shareable,
       cache_control: shareable ? SHARED_CACHE_CONTROL : {}
   end

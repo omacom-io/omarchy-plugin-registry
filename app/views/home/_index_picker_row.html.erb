@@ -1,0 +1,70 @@
+<% match_type, match_value = plugin_match_reason(plugin) %>
+<% preview_url = plugin.preview? ? rails_storage_proxy_path(plugin.preview_card) : nil %>
+<% latest_size = plugin.try(:latest_size_bytes)&.to_i %>
+<% upvotes = plugin.try(:upvotes_count).to_i %>
+<% is_new = plugin_new?(plugin) %>
+<% bounded_summary = plugin.summary&.each_char&.take(Registry::ManifestValidator::MAX_DESCRIPTION_LENGTH)&.join %>
+<%= tag.article id: "plugin-option-#{plugin.id}",
+      class: "index-picker__row index-picker__card",
+      data: {
+        index_picker_target: "row",
+        url: plugin_path(plugin.publisher.name, plugin.name),
+        name: plugin.name,
+        publisher: plugin.publisher.name,
+        category: plugin.category.presence || "other",
+        kinds: plugin.kinds.to_json,
+        tags: plugin.tags.to_json,
+        summary: bounded_summary,
+        preview_url: preview_url,
+        preview_width: plugin.preview_card_meta["width"],
+        preview_height: plugin.preview_card_meta["height"],
+        install_command: ("omarchy plugin add #{plugin.full_name}" if plugin.installable?),
+        match_type: match_type,
+        match_value: match_value,
+        latest_version: plugin.latest_version,
+        is_new: is_new,
+        upvotes: upvotes,
+        views: plugin.views_count,
+        downloads: plugin.downloads_count,
+        verified: latest_size.present?,
+        size_bytes: latest_size
+      } do %>
+  <%= link_to "", plugin_path(plugin.publisher.name, plugin.name), class: "index-picker__card-open",
+        aria: { label: "Open #{plugin.full_name} plugin details" } %>
+  <span class="index-picker__card-visual">
+    <% if preview_url %>
+      <img src="<%= preview_url %>" alt="" loading="lazy" decoding="async"
+           width="<%= plugin.preview_card_meta["width"] %>" height="<%= plugin.preview_card_meta["height"] %>">
+    <% else %>
+      <span class="index-picker__card-fallback">
+        <b>preview unavailable</b>
+        <span><%= bounded_summary.presence || "No preview artifact was published." %></span>
+      </span>
+    <% end %>
+  </span>
+  <span class="index-picker__card-foot">
+    <span class="index-picker__card-primary">
+      <span class="index-picker__card-title">
+        <%= link_to plugin.name, plugin_path(plugin.publisher.name, plugin.name),
+              class: "index-picker__card-name", translate: "no", title: "Open plugin details",
+              data: { action: "click->index-picker#sharePlugin keydown.space->index-picker#sharePlugin", share_label: "Copy link to #{plugin.full_name}" } %>
+      </span>
+      <span class="index-picker__card-signals">
+        <span class="visually-hidden"><%= "New plugin, " if is_new %><%= pluralize(plugin.downloads_count, 'download') %>, <%= pluralize(upvotes, 'upvote') %>, <%= pluralize(plugin.views_count, 'view') %></span>
+        <% if is_new %><mark aria-hidden="true">new</mark><% end %>
+        <span aria-hidden="true">↓ <%= compact_number(plugin.downloads_count) %></span>
+        <span aria-hidden="true"><svg class="index-picker__upvote-glyph" viewBox="0 0 16 16" focusable="false"><path d="M5.5 7 8 2.5c.3-.6 1.2-.4 1.2.3V6h3.2c.8 0 1.4.7 1.2 1.5l-1 5c-.1.6-.6 1-1.2 1H5.5m0-6.5v6.5H2.5V7h3Z"/></svg> <%= compact_number(upvotes) %></span>
+        <span aria-hidden="true"><svg class="index-picker__view-glyph" viewBox="0 0 16 16" focusable="false"><path d="M1.5 8s2.3-4 6.5-4 6.5 4 6.5 4-2.3 4-6.5 4S1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="1.7"/></svg> <%= compact_number(plugin.views_count) %></span>
+      </span>
+    </span>
+    <span class="index-picker__card-secondary">
+      <span class="index-picker__card-publisher" translate="no"><%= plugin.publisher.name.downcase %></span>
+      <b class="index-picker__card-artifact" translate="no">
+        <span class="<%= latest_size.present? ? 'is-verified' : 'is-pending' %>"
+              aria-label="<%= latest_size.present? ? 'Verified artifact: passed registry review' : 'Artifact verification pending' %>"><%= latest_size.present? ? "Verified" : "Pending" %></span>
+        <% if latest_size.present? %><span><%= compact_byte_size(latest_size) %></span><% end %>
+        <span><%= plugin.latest_version.present? ? "v#{plugin.latest_version}" : "version pending" %></span>
+      </b>
+    </span>
+  </span>
+<% end %>

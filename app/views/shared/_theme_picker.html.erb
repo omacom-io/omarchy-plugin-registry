@@ -1,0 +1,31 @@
+<% themes = ApplicationHelper::THEMES %>
+<div class="theme-picker" data-theme-target="bar" hidden aria-label="Choose a theme"
+     data-action="wheel->theme#wheel:!passive">
+  <div class="theme-picker__strip" data-theme-target="strip">
+    <button type="button" class="theme-picker__item theme-picker__item--system" tabindex="-1" aria-pressed="false"
+            aria-label="System — follow active Omarchy theme"
+            data-theme-target="option" data-action="theme#pick" data-theme-value="system" data-theme-label="system">
+      <span class="theme-picker__pane">
+        <span class="theme-picker__system-preview" aria-hidden="true"><b>system</b><small>follow active Omarchy theme</small></span>
+        <span class="theme-picker__name" aria-hidden="true">system</span>
+        <i aria-hidden="true"></i>
+      </span>
+    </button>
+    <% themes.each do |value| %>
+      <button type="button" class="theme-picker__item" tabindex="-1" aria-pressed="false" aria-label="<%= value %>"
+              data-theme-target="option" data-action="theme#pick" data-theme-value="<%= value %>">
+        <span class="theme-picker__pane">
+          <img data-src="<%= image_path("themes/#{value}.webp") %>" alt="<%= value %>" width="800" height="450"
+               loading="lazy" decoding="async" draggable="false">
+          <span class="theme-picker__name" aria-hidden="true"><%= value %></span>
+          <i aria-hidden="true"></i>
+        </span>
+      </button>
+    <% end %>
+  </div>
+  <p class="theme-picker__label" role="status" aria-live="polite" aria-atomic="true">
+    <b data-theme-target="label" translate="no"></b>
+    <span class="lab theme-picker__desktop-help">←→ browse · enter apply · esc cancel</span>
+    <span class="lab theme-picker__mobile-help">tap apply · ←→ browse · esc cancel</span>
+  </p>
+</div>

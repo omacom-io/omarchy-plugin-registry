@@ -3,15 +3,23 @@
 export async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text)
-  } catch {
+    return true
+  } catch (clipboardError) {
     const scratch = document.createElement("textarea")
     scratch.value = text
     scratch.setAttribute("readonly", "")
     scratch.style.position = "absolute"
     scratch.style.left = "-9999px"
     document.body.appendChild(scratch)
-    scratch.select()
-    document.execCommand("copy")
-    scratch.remove()
+
+    try {
+      scratch.select()
+      if (!document.execCommand("copy")) throw new Error("Clipboard copy was rejected")
+      return true
+    } catch {
+      throw clipboardError
+    } finally {
+      scratch.remove()
+    }
   }
 }

@@ -10,12 +10,12 @@
   <%= form_with url: onboarding_path do |form| %>
     <div class="field">
       <label for="name">Display name</label>
-      <input type="text" name="name" id="name" required autofocus value="<%= params[:name] %>" placeholder="Ada Lovelace">
+      <input type="text" name="name" id="name" required autofocus autocomplete="name" value="<%= params[:name] %>" placeholder="Ada Lovelace">
     </div>
     <% if Current.user.personal_publisher.nil? %>
       <div class="field">
         <label for="handle">Handle</label>
-        <input type="text" name="handle" id="handle" required pattern="[a-z0-9][a-z0-9_-]*" value="<%= params[:handle] %>" placeholder="ada">
+        <input type="text" name="handle" id="handle" required autocomplete="username" spellcheck="false" pattern="[a-z0-9][a-z0-9_-]*" value="<%= params[:handle] %>" placeholder="ada">
         <p class="hint">Lowercase letters, digits, - or _. This is permanent.</p>
       </div>
     <% else %>

@@ -1,21 +1,45 @@
 <% content_for :title, "Transparency log — Omarchy Plugins" %>
-<div class="content-page container">
-  <p class="eyebrow">Transparency</p>
-  <h1>Audit log</h1>
-  <p class="lede">Every publish, yank, takedown, and namespace claim — in public. The index
-    itself is mirrorable; this is the human-readable view.</p>
-  <ul class="audit-list">
-    <% @events.each do |event| %>
-      <li>
-        <time datetime="<%= event.created_at.iso8601 %>"><%= event.created_at.strftime("%Y-%m-%d %H:%M UTC") %></time>
-        <span class="action"><%= event.action %></span>
-        <span><%= event.metadata.map { |k, v| "#{k}: #{v}" }.join(" · ") %></span>
-      </li>
-    <% end %>
-    <% if @events.empty? %><li><span class="muted">Nothing yet.</span></li><% end %>
-  </ul>
-  <div class="form-inline u-gap-top">
-    <% if @page > 1 %><%= link_to "← Newer", audit_log_path(page: @page - 1), class: "button button--ghost button--small" %><% end %>
-    <% if @more %><%= link_to "Older →", audit_log_path(page: @page + 1), class: "button button--ghost button--small" %><% end %>
-  </div>
-</div>
+<section class="terminal-page">
+  <article class="terminal-window" aria-labelledby="audit-title">
+    <%= render "shared/terminal_window_header", title: "Audit log",
+          route_alias: "audit.log", status: "public", command: "omarchy registry audit --public" %>
+
+    <div class="terminal-window__layout">
+      <nav class="terminal-window__index" aria-label="Audit log sections">
+        <b>Tree ./audit</b>
+        <%= link_to "├─ events", "#events", class: "is-active" %>
+        <%= link_to "├─ governance", governance_path %>
+        <%= link_to "└─ feed", feed_path %>
+      </nav>
+
+      <div class="terminal-window__main terminal-window__main--wide">
+        <h1 id="audit-title">Every action leaves a record.</h1>
+        <p class="terminal-window__lede">Publishes, yanks, takedowns, and namespace claims are public. The signed index is mirrorable; this is its human-readable timeline.</p>
+
+        <section id="events" class="terminal-section" aria-labelledby="events-title">
+          <h2 id="events-title" class="terminal-section__title"><span aria-hidden="true">$ </span>tail audit.log</h2>
+          <ol class="terminal-audit">
+            <% @events.each do |event| %>
+              <li>
+                <time datetime="<%= event.created_at.iso8601 %>"><%= event.created_at.strftime("%Y-%m-%d %H:%M UTC") %></time>
+                <b><%= event.action %></b>
+                <span><%= event.metadata.map { |key, value| "#{key}: #{value}" }.join(" · ").presence || "public event" %></span>
+              </li>
+            <% end %>
+            <% if @events.empty? %>
+              <li class="is-empty"><b>[ idle ]</b><span>Nothing yet.</span></li>
+            <% end %>
+          </ol>
+        </section>
+
+        <% if @page > 1 || @more %>
+          <nav class="terminal-pagination" aria-label="Audit log pages">
+            <% if @page > 1 %><%= link_to "← newer", audit_log_path(page: @page - 1), class: "button button--ghost button--small" %><% end %>
+            <span>page <b><%= @page %></b></span>
+            <% if @more %><%= link_to "older →", audit_log_path(page: @page + 1), class: "button button--ghost button--small" %><% end %>
+          </nav>
+        <% end %>
+      </div>
+    </div>
+  </article>
+</section>

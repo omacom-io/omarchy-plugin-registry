@@ -1,0 +1,34 @@
+<%
+  home_index = controller_path == "home" && action_name == "index"
+  browse_location = %w[plugins publishers claims].include?(controller_path)
+  governance_location = current_page?(governance_path) || controller_path == "audit_log"
+  publishing_location = current_page?(publishing_path)
+  home_href = home_index ? "#{request.fullpath}#main-content" : root_path
+  browse_href = home_index ? "#{request.fullpath}#browse" : directory_path(anchor: "browse")
+  section_data = ->(target) do
+    home_index ? { terminal_tree_target: "link", action: "terminal-tree#select", mobile_section: target, turbo: false } : {}
+  end
+%>
+<nav class="mobile-nav" aria-label="Mobile navigation"
+     <% if home_index %>data-controller="terminal-tree" data-terminal-tree-activate-last-at-bottom-value="true"<% end %>>
+  <%= link_to home_href, class: [ "mobile-nav__link", { "is-active": home_index } ],
+        aria: (home_index ? { current: "page" } : {}), data: section_data.call("home") do %>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20H4v-8.5Z"/></svg>
+    <span>Home</span>
+  <% end %>
+  <%= link_to browse_href, class: [ "mobile-nav__link", { "is-active": browse_location } ],
+        aria: (browse_location ? { current: "location" } : {}), data: section_data.call("browse") do %>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+    <span>Browse</span>
+  <% end %>
+  <%= link_to governance_path, class: [ "mobile-nav__link", { "is-active": governance_location } ],
+        aria: (governance_location ? { current: current_page?(governance_path) ? "page" : "location" } : {}) do %>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8.4 7 10 4.2-1.6 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+    <span>Governance</span>
+  <% end %>
+  <%= link_to publishing_path, class: [ "mobile-nav__link", { "is-active": publishing_location } ],
+        aria: (publishing_location ? { current: "page" } : {}) do %>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 9l5-5 5 5"/><path d="M5 15v5h14v-5"/></svg>
+    <span>Publish</span>
+  <% end %>
+</nav>

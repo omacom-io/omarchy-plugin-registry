@@ -1,22 +1,23 @@
 <%# The Omacom mark: circle · square · diamond with knockouts. Single fill via
     currentColor — never multicolored, never outlined. %>
+<% mask_suffix = local_assigns[:id_suffix] || "logo" %>
 <svg viewBox="0 0 1103 453" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="<%= local_assigns[:class] || "logo" %>" aria-hidden="true">
   <defs>
-    <mask id="omk-c">
+    <mask id="omk-c-<%= mask_suffix %>">
       <rect x="-500" y="-500" width="2500" height="1500" fill="white"/>
       <rect x="448.6" y="105.2" width="223.7" height="242.7" fill="black"/>
     </mask>
-    <mask id="omk-r">
+    <mask id="omk-r-<%= mask_suffix %>">
       <rect x="-500" y="-500" width="2500" height="1500" fill="white"/>
       <circle cx="362" cy="226.5" r="132" fill="black"/>
       <polygon points="741,94.48 873.02,226.5 741,358.52 608.98,226.5" fill="black"/>
     </mask>
-    <mask id="omk-d">
+    <mask id="omk-d-<%= mask_suffix %>">
       <rect x="-500" y="-500" width="2500" height="1500" fill="white"/>
       <rect x="448.6" y="105.2" width="223.7" height="242.7" fill="black"/>
     </mask>
   </defs>
-  <circle cx="362" cy="226.5" r="132" mask="url(#omk-c)"/>
-  <rect x="448.6" y="105.2" width="223.7" height="242.7" mask="url(#omk-r)"/>
-  <polygon points="741,94.48 873.02,226.5 741,358.52 608.98,226.5" mask="url(#omk-d)"/>
+  <circle cx="362" cy="226.5" r="132" mask="url(#omk-c-<%= mask_suffix %>)"/>
+  <rect x="448.6" y="105.2" width="223.7" height="242.7" mask="url(#omk-r-<%= mask_suffix %>)"/>
+  <polygon points="741,94.48 873.02,226.5 741,358.52 608.98,226.5" mask="url(#omk-d-<%= mask_suffix %>)"/>
 </svg>

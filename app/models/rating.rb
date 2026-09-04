@@ -15,7 +15,8 @@ class Rating < ApplicationRecord
     plugin.with_lock do
       plugin.update_columns(
         ratings_count: plugin.ratings.count,
-        ratings_sum: plugin.ratings.sum(:value)
+        ratings_sum: plugin.ratings.sum(:value),
+        updated_at: Time.current
       )
     end
   end

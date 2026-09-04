@@ -1,0 +1,14 @@
+<header class="terminal-window__titlebar">
+  <strong><span aria-hidden="true">┌─ </span><%= title %></strong>
+  <span>
+    <span class="terminal-window__titlebar-context"><%= route_alias %><% if local_assigns[:status].present? %> · <%= status %><% end %></span>
+    <% if local_assigns[:action_path].present? && local_assigns[:action_label].present? %>
+      <%= link_to action_path, class: "terminal-window__titlebar-action" do %><%= action_label %><span aria-hidden="true"> →</span><% end %>
+    <% end %>
+  </span>
+</header>
+<div class="terminal-window__prompt" aria-label="Command: <%= command %>">
+  <b aria-hidden="true">registry@index:~$</b>
+  <span><%= command %></span>
+  <% if local_assigns.fetch(:cursor, true) %><i aria-hidden="true"></i><% end %>
+</div>

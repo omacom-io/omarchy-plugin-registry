@@ -9,8 +9,16 @@ class PasswordlessAuthTest < ActionDispatch::IntegrationTest
     assert_enqueued_emails 1
     code = emailed_login_code
 
+    get verify_session_path
+    assert_response :success
+    assert_select "input#code[autofocus][autocomplete='one-time-code']", count: 1
+
     post authenticate_session_path, params: { code: code }
     assert_redirected_to onboarding_path
+
+    get onboarding_path
+    assert_response :success
+    assert_select "input#name[autofocus][autocomplete='name']", count: 1
 
     post onboarding_path, params: { name: "New Dev", handle: "newdev" }
     assert_redirected_to settings_two_factor_path

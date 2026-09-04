@@ -8,6 +8,15 @@ class DeviceFlowTest < ActionDispatch::IntegrationTest
     Membership.create!(publisher: @publisher, user: @user, role: :owner, founding: true)
   end
 
+  test "device code entry focuses the required code field" do
+    sign_in_as @user
+
+    get device_path
+
+    assert_response :success
+    assert_select "input#code[required][autofocus][autocomplete='off']", count: 1
+  end
+
   test "full device flow: code -> approval -> polled token that can publish" do
     post "/api/v1/device/code"
     assert_response :created

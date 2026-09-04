@@ -8,6 +8,11 @@ export default class extends Controller {
   static targets = ["button"]
   static values = { text: String }
 
+  disconnect() {
+    clearTimeout(this.timer)
+    if (this.hasButtonTarget) this.reset()
+  }
+
   async copy() {
     await copyText(this.textValue)
     this.confirm()
@@ -15,7 +20,14 @@ export default class extends Controller {
 
   confirm() {
     this.buttonTarget.classList.add("copy-button--done")
+    this.buttonTarget.setAttribute("aria-label", this.buttonTarget.dataset.copyCopiedLabel || "Copied")
     clearTimeout(this.timer)
-    this.timer = setTimeout(() => this.buttonTarget.classList.remove("copy-button--done"), 1600)
+    this.timer = setTimeout(() => this.reset(), 1600)
+  }
+
+  reset() {
+    this.buttonTarget.classList.remove("copy-button--done")
+    const label = this.buttonTarget.dataset.copyDefaultLabel || "Copy"
+    this.buttonTarget.setAttribute("aria-label", label)
   }
 }

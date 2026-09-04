@@ -16,20 +16,7 @@
 <section class="directory container">
   <% if @plugins.any? %>
     <div class="plugin-grid">
-      <% @plugins.each do |plugin| %>
-        <%= link_to plugin_path(@publisher.name, plugin.name), class: "plugin-card" do %>
-          <h3><%= plugin.name %></h3>
-          <p><%= plugin.summary %></p>
-          <div class="plugin-card__meta">
-            <% if plugin.latest_version %>
-              <span><span class="diamond">◆</span> v<%= plugin.latest_version %></span>
-              <span><%= compact_number(plugin.downloads_count) %> downloads</span>
-            <% else %>
-              <span class="badge badge--warning">Under review</span>
-            <% end %>
-          </div>
-        <% end %>
-      <% end %>
+      <%= render partial: "home/plugin_card", collection: @plugins, as: :plugin %>
     </div>
   <% else %>
     <p class="muted">No published plugins yet.</p>

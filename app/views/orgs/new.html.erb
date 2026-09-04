@@ -1,20 +1,67 @@
-<% content_for :title, "New org — Omarchy Plugins" %>
-<div class="form-page">
-  <p class="eyebrow">Organizations</p>
-  <h1>Create an org.</h1>
-  <p>An org is a shared namespace with a member roster. You'll be its owner.</p>
-  <% if @publisher.errors.any? %>
-    <div class="field-errors"><% @publisher.errors.full_messages.each do |e| %><p><%= e %></p><% end %></div>
-  <% end %>
-  <%= form_with url: orgs_path do |form| %>
-    <div class="field">
-      <label for="publisher_name">Namespace</label>
-      <input type="text" name="publisher[name]" id="publisher_name" required pattern="[a-z0-9][a-z0-9_-]*" value="<%= @publisher.name %>">
+<% content_for :title, "New organization — Omarchy Plugins" %>
+<section class="terminal-page account-page">
+  <article class="terminal-window terminal-window--ansi account-terminal account-terminal--compact" aria-labelledby="new-org-title">
+    <%= render "shared/terminal_window_header", title: "Create organization",
+          route_alias: "account/orgs/new", status: "owner access", command: "omarchy account org create", cursor: false %>
+
+    <div class="terminal-window__layout">
+      <nav class="terminal-window__index terminal-window__index--tree" aria-label="Organization setup">
+        <div class="terminal-window__index-inner">
+          <b>Tree ./organizations</b>
+          <div class="terminal-window__tree">
+            <%= link_to dashboard_path(anchor: "organizations") do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>dashboard</span>
+            <% end %>
+            <%= link_to "#organization-form", class: "is-active", aria: { current: "location" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">└─</span><span>create</span>
+            <% end %>
+          </div>
+        </div>
+      </nav>
+
+      <div class="terminal-window__main">
+        <div class="account-overview__topline">
+          <span>ORGANIZATION</span><span>NEW NAMESPACE</span>
+        </div>
+        <h1 id="new-org-title">Create an organization.</h1>
+        <p class="terminal-window__lede">An organization is a shared namespace with a member roster. You become its first owner.</p>
+
+        <section id="organization-form" class="account-panel account-section" aria-labelledby="organization-form-title">
+          <div class="account-panel__head"><span>NAMESPACE</span><span>first claim</span></div>
+          <div class="account-panel__body">
+            <h2 id="organization-form-title" class="terminal-section__title">Organization identity</h2>
+            <% if @publisher.errors.any? %>
+              <div class="terminal-status account-errors" role="alert">
+                <b>[ invalid ]</b>
+                <% @publisher.errors.full_messages.each do |error| %><p><%= error %></p><% end %>
+              </div>
+            <% end %>
+            <%= form_with url: orgs_path, class: "account-form account-form--organization" do %>
+              <div class="field">
+                <label for="publisher_name">Namespace</label>
+                <input type="text" name="publisher[name]" id="publisher_name" required
+                       pattern="[a-z0-9][a-z0-9_-]*" autocomplete="off" spellcheck="false"
+                       value="<%= @publisher.name %>" placeholder="omarchy-labs">
+                <p class="hint">Permanent install prefix, for example <code>omarchy-labs/plugin</code>.</p>
+              </div>
+              <div class="field">
+                <label for="publisher_display_name">Display name</label>
+                <input type="text" name="publisher[display_name]" id="publisher_display_name"
+                       autocomplete="organization" value="<%= @publisher.display_name %>" placeholder="Omarchy Labs">
+              </div>
+              <div class="account-form__actions">
+                <%= link_to "Cancel", dashboard_path(anchor: "organizations"), class: "button button--ghost account-button" %>
+                <button type="submit" class="button account-button">Create org</button>
+              </div>
+            <% end %>
+          </div>
+        </section>
+
+        <div class="terminal-status account-permanence">
+          <b>[ permanent namespace ]</b>
+          <p>Names remain reserved after deletion or transfer so an old install command can never resolve to a different publisher.</p>
+        </div>
+      </div>
     </div>
-    <div class="field">
-      <label for="publisher_display_name">Display name</label>
-      <input type="text" name="publisher[display_name]" id="publisher_display_name" value="<%= @publisher.display_name %>">
-    </div>
-    <button type="submit" class="button">Create org</button>
-  <% end %>
-</div>
+  </article>
+</section>

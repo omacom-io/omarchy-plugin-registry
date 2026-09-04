@@ -43,6 +43,26 @@ class PublishFlowTest < ActionDispatch::IntegrationTest
     assert_equal 1, plugin.versions.first.reload.downloads_count
   end
 
+  test "manifest descriptions are printable and bounded for directory responses" do
+    maximum = Registry::ManifestValidator::MAX_DESCRIPTION_LENGTH
+    valid_manifest = TarballBuilder.manifest(description: "x" * maximum)
+    valid = Registry::ManifestValidator.new(manifest: valid_manifest, publisher: @publisher,
+      plugin_name: "weather", tarball: [ "Widget.qml" ])
+    assert valid.valid?, valid.errors.join(", ")
+
+    oversized = Registry::ManifestValidator.new(
+      manifest: TarballBuilder.manifest(description: "x" * (maximum + 1)), publisher: @publisher,
+      plugin_name: "weather", tarball: [ "Widget.qml" ])
+    assert_not oversized.valid?
+    assert_includes oversized.errors, "manifest description must be at most #{maximum} printable characters"
+
+    control = Registry::ManifestValidator.new(
+      manifest: TarballBuilder.manifest(description: "line one\nline two"), publisher: @publisher,
+      plugin_name: "weather", tarball: [ "Widget.qml" ])
+    assert_not control.valid?
+    assert_includes control.errors, "manifest description must be at most #{maximum} printable characters"
+  end
+
   test "rejects a narrower token that does not cover the target plugin" do
     other = ApiToken.mint!(user: @user, publisher: @publisher, plugin_name: "clock")
     publish TarballBuilder.build, token: other.plaintext_token

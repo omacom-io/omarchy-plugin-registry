@@ -23,6 +23,7 @@ module Registry
     # would promise installs Quattro can't perform.
     DEFERRED_KINDS = %w[theme].freeze
     ID_FORMAT = /\A[A-Za-z0-9][A-Za-z0-9._-]*\z/
+    MAX_DESCRIPTION_LENGTH = 512
 
     # The complete SPDX license list, vendored from spdx.org (config/spdx.json,
     # list version recorded inside) — real identifiers only, all of them.
@@ -69,7 +70,7 @@ module Registry
       end
       # Types are part of the contract — a numeric or object-valued field must
       # never reach a version row for clients to choke on
-      %w[id name version license minOmarchyVersion repository author].each do |field|
+      %w[id name version license minOmarchyVersion repository author description].each do |field|
         value = manifest[field]
         # nil-check, not present? — `false` and other non-strings must fail
         errors << "manifest #{field} must be a string" if !value.nil? && !value.is_a?(String)
@@ -77,6 +78,11 @@ module Registry
       name = manifest["name"]
       if name.is_a?(String) && (name.length > 80 || name.match?(/[[:cntrl:]]/))
         errors << "manifest name must be at most 80 printable characters"
+      end
+      description = manifest["description"]
+      if description.is_a?(String) &&
+          (description.length > MAX_DESCRIPTION_LENGTH || description.match?(/[[:cntrl:]]/))
+        errors << "manifest description must be at most #{MAX_DESCRIPTION_LENGTH} printable characters"
       end
     end
 

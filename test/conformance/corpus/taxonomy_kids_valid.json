@@ -1,0 +1,24 @@
+{
+  "name": "taxonomy_kids_valid",
+  "manifest": {
+    "schemaVersion": 1,
+    "id": "acme.weather",
+    "name": "Weather",
+    "version": "1.0.0",
+    "kinds": [
+      "bar-widget"
+    ],
+    "entryPoints": {
+      "barWidget": "Widget.qml"
+    },
+    "license": "MIT",
+    "category": "kids",
+    "tags": [
+      "weather"
+    ]
+  },
+  "files": {
+    "Widget.qml": "x"
+  },
+  "expect": "valid"
+}

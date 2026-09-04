@@ -1,0 +1,25 @@
+<% preview_url = plugin.preview? ? rails_storage_proxy_path(plugin.preview_card) : nil %>
+<article class="recent-stream__card">
+  <%= link_to "", plugin_path(plugin.publisher.name, plugin.name), class: "recent-stream__open",
+        tabindex: (-1 if duplicate), aria: { label: "Open details for #{plugin.full_name}" },
+        data: { action: "pointerdown->plugin-share#departByPointer" } %>
+  <span class="recent-stream__visual">
+    <% if preview_url %>
+      <img src="<%= preview_url %>" alt="" loading="lazy" decoding="async"
+           width="<%= plugin.preview_card_meta['width'] %>" height="<%= plugin.preview_card_meta['height'] %>">
+    <% else %>
+      <span class="recent-stream__fallback discovery-preview-fallback" aria-hidden="true">[ preview unavailable ]</span>
+    <% end %>
+  </span>
+  <span class="recent-stream__body">
+    <span class="recent-stream__primary">
+      <%= link_to plugin.name, plugin_path(plugin.publisher.name, plugin.name), class: "recent-stream__name",
+            tabindex: (-1 if duplicate), translate: "no",
+            data: { share_label: "Copy link to #{plugin.full_name}", action: "pointerdown->plugin-share#pointerInteraction click->plugin-share#copy keydown.space->plugin-share#copy",
+                    share_url: plugin_path(plugin.publisher.name, plugin.name) } %>
+    </span>
+    <span class="recent-stream__secondary">
+      <span class="recent-stream__publisher" translate="no"><%= plugin.publisher.name %></span>
+    </span>
+  </span>
+</article>

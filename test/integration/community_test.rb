@@ -17,14 +17,21 @@ class CommunityTest < ActionDispatch::IntegrationTest
   test "ratings upsert and aggregate" do
     sign_in_as @visitor
     post plugin_rating_path("acme", "weather"), params: { value: 4 }
-    post plugin_rating_path("acme", "weather"), params: { value: 5 }
-    assert_equal 1, @plugin.reload.ratings_count
+    previous_update = @plugin.reload.updated_at
+    travel 1.second do
+      post plugin_rating_path("acme", "weather"), params: { value: 5 }
+    end
+    assert_operator @plugin.reload.updated_at, :>, previous_update
+    assert_equal 1, @plugin.ratings_count
     assert_equal 5.0, @plugin.average_rating
 
     sign_in_as @dev
     post plugin_rating_path("acme", "weather"), params: { value: 2 }
     assert_equal 2, @plugin.reload.ratings_count
     assert_equal 3.5, @plugin.average_rating
+
+    get directory_json_path(q: "plugin:weather")
+    assert_equal 1, response.parsed_body["plugins"].sole.dig("card", "upvotes")
   end
 
   test "comments post, publisher badge shows, views count" do

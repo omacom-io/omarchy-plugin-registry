@@ -34,6 +34,21 @@ class PasskeysSystemTest < ApplicationSystemTestCase
     click_button "Sign in"
   end
 
+  test "passkey failures replace ready state in the terminal status block" do
+    visit new_session_path
+    page.execute_script <<~JS
+      window.__realFetch = window.fetch
+      window.fetch = (url, options) => String(url).includes("/session/passkey/options")
+        ? Promise.resolve(new Response("{}", { status: 500, headers: { "Content-Type": "application/json" } }))
+        : window.__realFetch(url, options)
+    JS
+
+    click_button "Sign in with a passkey"
+
+    assert_selector ".terminal-auth-status__error", text: /\[ error \].*Could not start the passkey ceremony\./m
+    assert_no_selector ".terminal-auth-status__ready"
+  end
+
   test "registering a passkey and signing in with it, through the real browser ceremony" do
     sign_in_with_email_code
     assert_text "Claim your namespace"
@@ -55,7 +70,8 @@ class PasskeysSystemTest < ApplicationSystemTestCase
     visit new_session_path
 
     click_button "Sign in with a passkey"
-    assert_text "DASHBOARD", wait: 10 # authenticated header appears
+    assert_current_path root_path, wait: 10
+    assert_link "account/dashboard →", href: dashboard_path # authenticated header appears
     visit dashboard_path
     assert_text "Hey, Dev"
   end

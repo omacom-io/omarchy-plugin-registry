@@ -19,7 +19,7 @@ class PreviewPipelineTest < ActionDispatch::IntegrationTest
     Vips::Image.black(width, height).add(60).cast("uchar").pngsave_buffer
   end
 
-  test "a published preview lands on the card grid and the plugin page" do
+  test "a published preview lands in the index picker and the plugin page" do
     perform_enqueued_jobs do
       publish TarballBuilder.build(files: {
         "Widget.qml" => "import QtQuick\nItem {}\n", "preview.png" => png_bytes })
@@ -33,10 +33,36 @@ class PreviewPipelineTest < ActionDispatch::IntegrationTest
     assert_equal "preview.png", plugin.preview_meta["source"]
 
     get "/"
-    assert_select ".plugin-card__preview"
+    assert_select ".index-picker__card-visual img"
     get "/plugins/acme/weather"
-    assert_select ".plugin-preview img"
-    assert_select "dialog.lightbox"
+    assert_select "button.plugin-preview[aria-label='Enlarge acme/weather preview']" do
+      assert_select "img[width][height]", 1
+      assert_select ".plugin-preview__zoom[aria-hidden='true']", text: "zoom ↗", count: 1
+    end
+    assert_select "dialog.lightbox" do
+      assert_select "img[width][height]", 1
+    end
+  end
+
+  test "the plugin page falls back to the card rendition when detail is unavailable" do
+    perform_enqueued_jobs do
+      publish TarballBuilder.build(files: {
+        "Widget.qml" => "import QtQuick\nItem {}\n", "preview.png" => png_bytes })
+    end
+    plugin = Plugin.find_by!(name: "weather")
+    plugin.preview_detail.purge
+
+    get plugin_path("acme", "weather")
+
+    assert_response :success
+    assert_select "button.plugin-preview" do
+      assert_select "img[src=?]", rails_storage_proxy_path(plugin.preview_card), count: 1
+    end
+    assert_select "dialog.lightbox img[src=?]", rails_storage_proxy_path(plugin.preview_card), count: 1
+
+    plugin.update_columns(preview_meta: {})
+    get plugin_path("acme", "weather")
+    assert_select ".plugin-preview, dialog.lightbox", count: 0
   end
 
   test "an update without a preview clears the old renditions" do

@@ -1,31 +1,58 @@
 <% content_for :title, "Governance — Omarchy Plugins" %>
-<div class="content-page container">
-  <p class="eyebrow">Governance</p>
-  <h1>Who can pull the levers.</h1>
-  <div class="prose">
-    <p class="statement">A registry is a promise: what you install is what was reviewed, and if
-      something malicious slips through, someone you can name will take it down. Here's who,
-      and how.</p>
+<section class="terminal-page">
+  <article class="terminal-window terminal-window--ansi" aria-labelledby="governance-title">
+    <%= render "shared/terminal_window_header", title: "Governance",
+          route_alias: "learn.governance", status: "read only", command: "omarchy registry powers", cursor: false %>
 
-    <h2>Powers and who holds them</h2>
-    <ul>
-      <li><span class="term">Quarantine</span> — freeze a version pending investigation. New installs stop within minutes; bytes are preserved.</li>
-      <li><span class="term">Yank / takedown</span> — remove a version from resolution permanently. The name and version are burned forever.</li>
-      <li><span class="term">Kill-bit</span> — add an entry to <code>revocations.json</code>, disabling already-installed copies on users' machines.</li>
-      <li><span class="term">Publisher revocation</span> — suspend a compromised or malicious account.</li>
-    </ul>
-    <p>The admin roster will be published on this page — names, not titles — along with who
-      holds the index-signing key and how it is stored. <em>(Roster assignment is in progress;
-      this page ships before the registry accepts its first outside publisher.)</em></p>
+    <div class="terminal-window__layout">
+      <nav class="terminal-window__index terminal-window__index--tree" aria-label="Governance sections"
+           data-controller="terminal-tree">
+        <div class="terminal-window__index-inner">
+          <b>Tree ./governance</b>
+          <div class="terminal-window__tree">
+            <%= link_to "#powers", class: "is-active", aria: { current: "location" },
+                  data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>powers</span>
+            <% end %>
+            <%= link_to "#appeals", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>appeals</span>
+            <% end %>
+            <%= link_to "#transparency", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">└─</span><span>transparency</span>
+            <% end %>
+          </div>
+        </div>
+      </nav>
 
-    <h2>Appeals</h2>
-    <p>If your plugin was taken down and you believe that's wrong, email
-      <a href="mailto:registry@omarchy.org">registry@omarchy.org</a>. Appeals are answered by a
-      human, in public, on the <%= link_to "transparency log", audit_log_path %>.</p>
+      <div class="terminal-window__main">
+        <h1 id="governance-title">Who can pull the levers.</h1>
+        <p class="terminal-window__lede">What you install is what was reviewed. If something malicious slips through, every intervention has a named owner and a public record.</p>
 
-    <h2>Transparency</h2>
-    <p>The full index is static, signed, and mirrorable by anyone. Every administrative action
-      lands on the <%= link_to "audit log", audit_log_path %>. If we ever remove something, you
-      can see that we did, when, and why.</p>
-  </div>
-</div>
+        <section id="powers" class="terminal-section" aria-labelledby="powers-title">
+          <h2 id="powers-title" class="terminal-section__title terminal-section__title--plain"><span aria-hidden="true">$ </span>omarchy registry powers</h2>
+          <ol class="terminal-actions">
+            <li><i aria-hidden="true">[1]</i><b>quarantine</b><span>Freeze a version pending investigation. New installs stop within minutes; bytes remain available for review.</span></li>
+            <li><i aria-hidden="true">[2]</i><b>yank / takedown</b><span>Remove a version from resolution permanently. Its name and version remain burned.</span></li>
+            <li><i aria-hidden="true">[3]</i><b>kill-bit</b><span>Add an entry to <code>revocations.json</code>, disabling already-installed copies.</span></li>
+            <li><i aria-hidden="true">[4]</i><b>publisher revocation</b><span>Suspend a compromised or malicious publisher account.</span></li>
+          </ol>
+          <div class="terminal-status">
+            <b>[ roster pending ]</b>
+            <p>The admin roster will appear here by name, together with the holder and storage model of the index-signing key. The page ships before the registry accepts its first outside publisher.</p>
+          </div>
+        </section>
+
+        <div class="terminal-note-grid">
+          <section id="appeals" class="terminal-note">
+            <h2>Appeals</h2>
+            <p>Disputed actions go to <a href="mailto:registry@omarchy.org">registry@omarchy.org</a> and receive a public human response.</p>
+          </section>
+          <section id="transparency" class="terminal-note">
+            <h2>Transparency</h2>
+            <p>The index is static, signed, and mirrorable. Every administrative action lands in the <%= link_to "public audit log →", audit_log_path %></p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>

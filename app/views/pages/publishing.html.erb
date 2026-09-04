@@ -1,62 +1,100 @@
 <% content_for :title, "Publishing — Omarchy Plugins" %>
-<div class="content-page container">
-  <p class="eyebrow">Publishing guide</p>
-  <h1>Ship a plugin in minutes.</h1>
-  <div class="prose">
-    <p class="statement">Push it anywhere — GitHub, Codeberg, your own Forgejo, or nowhere
-      public at all. The registry never requires a forge. Tag, publish, done.</p>
+<section class="terminal-page">
+  <article class="terminal-window terminal-window--ansi" aria-labelledby="publishing-title">
+    <%= render "shared/terminal_window_header", title: "Publishing guide",
+          route_alias: "publish.guide", status: "read only", command: "omarchy plugin publish --help", cursor: false %>
 
-    <h2>1. Scaffold</h2>
-    <pre>$ omarchy plugin new weather</pre>
-    <p>You get a <code>manifest.json</code>, a starter widget, a readme, and an optional CI
-      publish workflow.</p>
+    <div class="terminal-window__layout">
+      <nav class="terminal-window__index terminal-window__index--tree" aria-label="Publishing guide sections"
+           data-controller="terminal-tree" data-terminal-tree-activate-last-at-bottom-value="true">
+        <div class="terminal-window__index-inner">
+          <b>Tree ./publishing</b>
+          <div class="terminal-window__tree">
+            <%= link_to "#quick-start", class: "is-active", aria: { current: "location" },
+                  data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>quick start</span>
+            <% end %>
+            <%= link_to "#namespace", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>namespace</span>
+            <% end %>
+            <%= link_to "#publish", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>publish</span>
+            <% end %>
+            <%= link_to "#rules", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>rules</span>
+            <% end %>
+            <%= link_to "#previews", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>previews</span>
+            <% end %>
+            <%= link_to "#trusted", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">└─</span><span>trusted</span>
+            <% end %>
+          </div>
+        </div>
+      </nav>
 
-    <h2>2. Claim your namespace</h2>
-    <p><%= link_to "Sign in", new_session_path %> (no password — we email you a code), claim
-      your handle, and enable two-factor auth. Your plugin's id will be
-      <code>handle.name</code>, installed as <code>handle/name</code>.</p>
+      <div class="terminal-window__main terminal-window__main--wide">
+        <h1 id="publishing-title">Ship a plugin in minutes.</h1>
+        <p class="terminal-window__lede">Push it anywhere — GitHub, Codeberg, your own Forgejo, or nowhere public at all. The registry never requires a forge. Tag, publish, done.</p>
 
-    <h2>3. Publish</h2>
-    <pre>$ omarchy plugin publish
+        <section id="quick-start" class="terminal-section terminal-step" aria-labelledby="scaffold-title">
+          <div class="terminal-step__number" aria-hidden="true">[1]</div>
+          <div>
+            <h2 id="scaffold-title" class="terminal-section__title">Scaffold</h2>
+            <pre><code>$ omarchy plugin new weather</code></pre>
+            <p>You get a <code>manifest.json</code>, a starter widget, a readme, and an optional CI publish workflow.</p>
+          </div>
+        </section>
+
+        <section id="namespace" class="terminal-section terminal-step" aria-labelledby="namespace-title">
+          <div class="terminal-step__number" aria-hidden="true">[2]</div>
+          <div>
+            <h2 id="namespace-title" class="terminal-section__title">Claim your namespace</h2>
+            <p><%= link_to "Sign in", new_session_path %> — no password; we email you a code — then claim your handle and enable two-factor authentication. Your plugin ID is <code>handle.name</code> and its install name is <code>handle/name</code>.</p>
+          </div>
+        </section>
+
+        <section id="publish" class="terminal-section terminal-step" aria-labelledby="publish-title">
+          <div class="terminal-step__number" aria-hidden="true">[3]</div>
+          <div>
+            <h2 id="publish-title" class="terminal-section__title">Publish</h2>
+            <pre><code>$ omarchy plugin publish
 # device flow: approve the 8-char code in your browser, done.
 # or, by hand:
 $ tar czf weather-1.0.0.tar.gz manifest.json Widget.qml README.md
 $ curl -X POST --data-binary @weather-1.0.0.tar.gz \
     -H "Authorization: Bearer omp_…" \
-    https://plugins.omarchy.org/api/v1/plugins/you/weather/versions</pre>
-    <p>A publish token from <code>omarchy plugin publish</code> is push-only, covers any plugin in
-      your namespaces, and expires in 7 days (CI tokens from trusted publishing are minted per
-      plugin). Push-only means it can't yank, transfer ownership, or change account settings. Every version —
-      first publish or update — runs the same review pipeline: structural validation, malware
-      scanning, a capability fingerprint, and a short hold before going live. Versions are
-      immutable: once <code>you/weather@1.0.0</code> exists, those bytes are frozen forever.</p>
+    https://plugins.omarchy.org/api/v1/plugins/you/weather/versions</code></pre>
+            <p>A token from <code>omarchy plugin publish</code> is push-only, covers plugins in your namespaces, and expires in seven days. Trusted-publishing CI tokens are minted per plugin. Push-only tokens cannot yank, transfer ownership, or change account settings.</p>
+            <p>Every version runs the same structural validation, malware scan, capability fingerprint, and hold before release. Versions are immutable: once <code>you/weather@1.0.0</code> exists, those bytes are frozen forever.</p>
+          </div>
+        </section>
 
-    <h2>The rules</h2>
-    <ul>
-      <li>Strict semver, always increasing. A used version number is burned forever, even if rejected.</li>
-      <li><code>license</code> (SPDX) is required. <code>repository</code> is optional and shown on your plugin page — publishing via trusted publishing adds provenance links to the exact commit.</li>
-      <li>No symlinks, no entry points outside the plugin directory, 10 MB max.</li>
-      <li>Manifest <code>id</code> must equal <code>yourhandle.pluginname</code>.</li>
-    </ul>
+        <section id="rules" class="terminal-section" aria-labelledby="rules-title">
+          <h2 id="rules-title" class="terminal-section__title"><span aria-hidden="true">$ </span>validate manifest</h2>
+          <ul class="terminal-rules">
+            <li><b>semver</b><span>Strict and always increasing. A used version remains burned even when rejected.</span></li>
+            <li><b>license</b><span>An SPDX license is required. A repository is optional; trusted publishing links provenance to the exact commit.</span></li>
+            <li><b>archive</b><span>No symlinks, no entry points outside the plugin directory, 10 MB maximum.</span></li>
+            <li><b>identity</b><span>Manifest <code>id</code> must equal <code>yourhandle.pluginname</code>.</span></li>
+          </ul>
+        </section>
 
-    <h2>Make it look good</h2>
-    <p>Ship one screenshot named <code>preview.png</code> (or <code>.jpg</code>, <code>.webp</code>,
-      <code>.gif</code>) at the tarball root and the directory shows it on your card, your plugin
-      page gets a click-to-zoom preview, and your share links get a proper card. Animated GIFs stay
-      animated on the plugin page. No resizing needed — the registry generates optimized renditions;
-      just keep stills under 40 megapixels and recordings at 1440p or below.</p>
-    <p>Two optional manifest fields drive browsing:
-      <code>category</code> — one of
-      <% Registry::Taxonomy::CATEGORIES.each do |c| %><code><%= c %></code><%= " · " unless c == Registry::Taxonomy::CATEGORIES.last %><% end %> —
-      and <code>tags</code>, up to <%= Registry::Taxonomy::MAX_TAGS %> from the curated list
-      (<% Registry::Taxonomy::TAGS.each do |t| %><code><%= t %></code><%= ", " unless t == Registry::Taxonomy::TAGS.last %><% end %>).
-      Missing a tag that obviously should exist? Ask in an issue — the list is curated on purpose,
-      so filters stay meaningful.</p>
+        <section id="previews" class="terminal-section" aria-labelledby="previews-title">
+          <h2 id="previews-title" class="terminal-section__title">Make it look good</h2>
+          <p>Ship one root screenshot named <code>preview.png</code>, <code>preview.jpg</code>, <code>preview.webp</code>, or <code>preview.gif</code>. It powers the directory card, click-to-zoom detail preview, and share card. Animated GIFs stay animated on the plugin page. Keep stills under 40 megapixels and recordings at 1440p or below; the registry generates optimized renditions.</p>
+          <div class="terminal-status">
+            <b>[ browse metadata ]</b>
+            <p><code>category</code> accepts <% Registry::Taxonomy::CATEGORIES.each do |category| %><code><%= category %></code><%= " · " unless category == Registry::Taxonomy::CATEGORIES.last %><% end %>.</p>
+            <p><code>tags</code> accepts up to <%= Registry::Taxonomy::MAX_TAGS %> entries from the curated vocabulary: <% Registry::Taxonomy::TAGS.each do |tag| %><code><%= tag %></code><%= ", " unless tag == Registry::Taxonomy::TAGS.last %><% end %>. Missing an obvious reusable tag? Request it in an issue; curation keeps filters meaningful.</p>
+          </div>
+        </section>
 
-    <h2>Prefer hands-off?</h2>
-    <p>Register <span class="term">trusted publishing</span> from your dashboard (repo +
-      workflow + environment, GitHub Actions today) and tagging <code>v1.0.0</code> publishes
-      for you via OIDC with no stored secret at all — your plugin page gets provenance links
-      back to the exact commit and workflow run.</p>
-  </div>
-</div>
+        <section id="trusted" class="terminal-note terminal-note--wide">
+          <h2>Prefer hands-off?</h2>
+          <p>Register <b>trusted publishing</b> from your dashboard using repository, workflow, and environment. GitHub Actions is supported today. Tagging <code>v1.0.0</code> then publishes through OIDC with no stored secret and records provenance links to the exact commit and workflow run.</p>
+        </section>
+      </div>
+    </div>
+  </article>
+</section>

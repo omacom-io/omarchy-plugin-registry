@@ -1,62 +1,114 @@
 <% content_for :title, "Account security — Omarchy Plugins" %>
-<div class="content-page container">
-  <p class="eyebrow">Account security</p>
-  <h1>Second factor</h1>
-  <p class="lede">Required before you can publish — every registry credential incident starts
-    with a phished account. A passkey is the strongest option (unphishable); TOTP works too.</p>
+<section class="terminal-page account-page">
+  <article class="terminal-window terminal-window--ansi account-terminal" aria-labelledby="security-title">
+    <%= render "shared/terminal_window_header", title: "Account security",
+          route_alias: "account/security", status: (@user.second_factor? ? "factor ready" : "setup required"),
+          command: "omarchy account secure", cursor: false %>
 
-  <section>
-    <h2>Passkeys</h2>
-    <% if @user.passkeys.any? %>
-      <table class="table u-max-mid">
-        <thead><tr><th>Name</th><th>Last used</th><th></th></tr></thead>
-        <tbody>
-          <% @user.passkeys.each do |passkey| %>
-            <tr>
-              <td><%= passkey.nickname %></td>
-              <td class="muted"><%= passkey.last_used_at ? "#{time_ago_in_words(passkey.last_used_at)} ago" : "never" %></td>
-              <td class="actions"><%= button_to "Remove", settings_passkey_path(passkey), method: :delete, class: "button button--ghost button--small" %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% end %>
-    <div data-controller="webauthn"
-         data-webauthn-options-url-value="<%= options_settings_passkeys_path %>"
-         data-webauthn-verify-url-value="<%= settings_passkeys_path %>">
-      <button type="button" class="button" data-action="webauthn#register">Add a passkey</button>
-      <p class="field-errors" data-webauthn-target="error"></p>
-    </div>
-  </section>
-
-  <section>
-    <h2>Authenticator app (TOTP)</h2>
-    <% if @user.otp_enabled? %>
-      <p class="lede">Enabled.
-        <%= button_to "Disable TOTP", settings_two_factor_path, method: :delete, class: "button button--ghost button--small",
-              form: { data: { turbo_confirm: "Disable TOTP? Your backup codes stop working; re-enrolling generates a fresh secret." } } %>
-      </p>
-      <% if @backup_codes.present? %>
-        <h4 class="u-gap-bottom-sm">Backup codes — shown once, save them now</h4>
-        <p class="lede">Each works once if you lose your authenticator. They will not be displayed again.</p>
-        <ul class="backup-codes">
-          <% @backup_codes.each do |code| %><li><code><%= code %></code></li><% end %>
-        </ul>
-      <% end %>
-    <% else %>
-      <p class="lede">Scan with any TOTP app, then confirm with a code.</p>
-      <div class="qr-box"><%= @qr_svg.html_safe %></div>
-      <p class="muted" data-controller="clipboard" data-clipboard-text-value="<%= @provisional_secret %>">
-        Or enter the secret manually: <code><%= @provisional_secret %></code>
-        <%= render "shared/copy_button", label: "Copy TOTP secret", variant: "copy-button--inline" %>
-      </p>
-      <%= form_with url: settings_two_factor_path, method: :patch do |form| %>
-        <div class="field u-max-field u-gap-top">
-          <label for="code">Code from your app</label>
-          <input type="text" name="code" id="code" class="code-input" inputmode="numeric" maxlength="6" required>
+    <div class="terminal-window__layout">
+      <nav class="terminal-window__index terminal-window__index--tree" aria-label="Account security sections"
+           data-controller="terminal-tree" data-terminal-tree-activate-last-at-bottom-value="true">
+        <div class="terminal-window__index-inner">
+          <b>Tree ./security</b>
+          <div class="terminal-window__tree">
+            <%= link_to dashboard_path do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>dashboard</span>
+            <% end %>
+            <%= link_to "#passkeys", class: "is-active", aria: { current: "location" },
+                  data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>passkeys</span>
+            <% end %>
+            <%= link_to "#authenticator", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">└─</span><span>authenticator</span>
+            <% end %>
+          </div>
         </div>
-        <button type="submit" class="button">Enable</button>
-      <% end %>
-    <% end %>
-  </section>
-</div>
+      </nav>
+
+      <div class="terminal-window__main terminal-window__main--wide account-terminal__main">
+        <div class="account-overview__topline">
+          <span>SECURITY</span><span><%= @user.second_factor? ? "PROTECTED" : "ACTION REQUIRED" %></span>
+        </div>
+        <h1 id="security-title">Second factor.</h1>
+        <p class="terminal-window__lede">Required before publishing. A passkey is phishing-resistant; an authenticator app works when a passkey is unavailable.</p>
+
+        <section id="passkeys" class="account-panel account-section" aria-labelledby="passkeys-title">
+          <div class="account-panel__head"><span>WEBAUTHN</span><span><%= @user.passkeys.size %> registered</span></div>
+          <div class="account-panel__body">
+            <h2 id="passkeys-title" class="terminal-section__title">Passkeys</h2>
+            <% if @user.passkeys.any? %>
+              <div class="account-table-wrap">
+                <table class="table">
+                  <thead><tr><th>Name</th><th>Last used</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                  <tbody>
+                    <% @user.passkeys.each do |passkey| %>
+                      <tr>
+                        <td><%= passkey.nickname %></td>
+                        <td class="muted"><%= passkey.last_used_at ? "#{time_ago_in_words(passkey.last_used_at)} ago" : "never" %></td>
+                        <td class="actions">
+                          <%= button_to "Remove", settings_passkey_path(passkey), method: :delete,
+                                class: "button button--ghost account-button",
+                                form: { data: { turbo_confirm: "Remove this passkey?" } } %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% else %>
+              <p class="account-empty">No passkeys registered.</p>
+            <% end %>
+            <div class="account-inline-action" data-controller="webauthn"
+                 data-webauthn-options-url-value="<%= options_settings_passkeys_path %>"
+                 data-webauthn-verify-url-value="<%= settings_passkeys_path %>">
+              <button type="button" class="button account-button" data-action="webauthn#register">Add a passkey</button>
+              <p class="field-errors" role="status" aria-live="polite" data-webauthn-target="error"></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="authenticator" class="account-panel account-section" aria-labelledby="authenticator-title">
+          <div class="account-panel__head"><span>TOTP</span><span><%= @user.otp_enabled? ? "enabled" : "not configured" %></span></div>
+          <div class="account-panel__body">
+            <h2 id="authenticator-title" class="terminal-section__title">Authenticator app</h2>
+            <% if @user.otp_enabled? %>
+              <div class="account-panel__body--action">
+                <p>Enabled. Your authenticator can approve publishing and other sensitive actions.</p>
+                <%= button_to "Disable TOTP", settings_two_factor_path, method: :delete,
+                      class: "button button--ghost account-button",
+                      form: { data: { turbo_confirm: "Disable TOTP? Your backup codes stop working; re-enrolling generates a fresh secret." } } %>
+              </div>
+              <% if @backup_codes.present? %>
+                <h3 class="account-subtitle">Backup codes — shown once</h3>
+                <p>Save these now. Each code works once if you lose your authenticator.</p>
+                <ul class="backup-codes">
+                  <% @backup_codes.each do |code| %><li><code><%= code %></code></li><% end %>
+                </ul>
+              <% end %>
+            <% else %>
+              <p>Scan this code with any TOTP app, then enter the generated six-digit code.</p>
+              <div class="account-totp-grid">
+                <div class="qr-box"><%= @qr_svg.html_safe %></div>
+                <div>
+                  <p class="muted" data-controller="clipboard" data-clipboard-text-value="<%= @provisional_secret %>">
+                    Or enter the secret manually: <code><%= @provisional_secret %></code>
+                    <%= render "shared/copy_button", label: "Copy TOTP secret", text: "copy",
+                          copied_text: "copied", copied_label: "TOTP secret copied" %>
+                  </p>
+                  <%= form_with url: settings_two_factor_path, method: :patch, class: "account-form account-form--totp" do %>
+                    <div class="field">
+                      <label for="code">Code from your app</label>
+                      <input type="text" name="code" id="code" class="code-input" inputmode="numeric"
+                             pattern="[0-9]*" maxlength="6" required autocomplete="one-time-code" spellcheck="false">
+                    </div>
+                    <button type="submit" class="button account-button">Enable TOTP</button>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </section>
+      </div>
+    </div>
+  </article>
+</section>

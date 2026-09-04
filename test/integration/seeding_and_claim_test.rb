@@ -38,7 +38,8 @@ class SeedingAndClaimTest < ActionDispatch::IntegrationTest
     assert_response :not_found
 
     get root_path
-    assert_no_match(/weather/, response.body)
+    assert_select ".index-picker__row", text: /weather/, count: 0
+    assert_select "a[href='/plugins/gracehopper/weather']", 0
   end
 
   test "seeding is idempotent" do

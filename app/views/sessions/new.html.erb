@@ -1,21 +1,53 @@
 <% content_for :title, "Sign in — Omarchy Plugins" %>
-<div class="form-page">
-  <p class="eyebrow">Sign in</p>
-  <h1>No passwords here.</h1>
-  <p>Enter your email and we'll send a one-time code. New here? Same door — your account
-    is created on first sign-in.</p>
-  <%= form_with url: session_path do |form| %>
-    <div class="field">
-      <label for="email_address">Email</label>
-      <input type="email" name="email_address" id="email_address" required autofocus autocomplete="email" placeholder="you@example.com">
+<section class="terminal-page">
+  <article class="terminal-window" aria-labelledby="sign-in-title">
+    <%= render "shared/terminal_window_header", title: "Sign in",
+          route_alias: "session.new", status: "passkey ready", command: "omarchy auth request-code", cursor: false %>
+
+    <div class="terminal-window__layout">
+      <nav class="terminal-window__index" aria-label="Sign-in methods">
+        <b>Method</b>
+        <%= link_to "├─ email code", "#email-code", class: "is-active" %>
+        <%= link_to "└─ passkey", "#passkey" %>
+      </nav>
+
+      <div class="terminal-window__main" data-controller="webauthn"
+           data-webauthn-options-url-value="<%= session_passkey_options_path %>"
+           data-webauthn-verify-url-value="<%= session_passkey_path %>">
+        <h1 id="sign-in-title">No passwords here.</h1>
+        <p class="terminal-window__lede">Enter your email and the registry sends a one-time code. New account, same command — it is created on first sign-in.</p>
+
+        <%= form_with url: session_path, id: "email-code", class: "terminal-auth-form" do |form| %>
+          <div class="field">
+            <label for="email_address">Email address</label>
+            <span class="terminal-inputline">
+              <b aria-hidden="true">&gt;</b>
+              <input type="email" name="email_address" id="email_address" required autofocus
+                     autocomplete="email" placeholder="you@example.com">
+            </span>
+          </div>
+          <div class="terminal-auth-actions">
+            <button type="submit" class="button">Email me a code</button>
+            <div id="passkey" class="terminal-auth-passkey">
+              <button type="button" class="button button--ghost" data-action="webauthn#authenticate">Sign in with a passkey</button>
+            </div>
+          </div>
+        <% end %>
+
+        <section class="terminal-section" aria-labelledby="auth-status-title">
+          <h2 id="auth-status-title" class="terminal-section__title">Status</h2>
+          <div class="terminal-status terminal-auth-status" role="status" aria-live="polite" aria-atomic="true">
+            <div class="terminal-auth-status__ready">
+              <b>[ ready ]</b>
+              <p>No password is stored or requested.</p>
+            </div>
+            <div class="terminal-auth-status__error">
+              <b>[ error ]</b>
+              <p class="field-errors" data-webauthn-target="error"></p>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
-    <button type="submit" class="button">Email me a code</button>
-  <% end %>
-  <div data-controller="webauthn"
-       data-webauthn-options-url-value="<%= session_passkey_options_path %>"
-       data-webauthn-verify-url-value="<%= session_passkey_path %>"
-       class="u-gap-top">
-    <button type="button" class="button button--ghost" data-action="webauthn#authenticate">Sign in with a passkey</button>
-    <p class="field-errors" data-webauthn-target="error"></p>
-  </div>
-</div>
+  </article>
+</section>

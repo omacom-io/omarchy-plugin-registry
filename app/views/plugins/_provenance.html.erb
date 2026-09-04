@@ -1,0 +1,29 @@
+<% repository = provenance["repository"].presence %>
+<% sha = provenance["sha"].presence %>
+<% workflow = provenance["workflow"].to_s.split("@").first.to_s.split("/").last.presence %>
+<section>
+  <h4>Provenance</h4>
+  <dl>
+    <% if provenance["source"] == "legacy-marketplace" %>
+      <% if repository && sha %>
+        <dt>Imported snapshot</dt>
+        <dd><%= link_to "#{repository}@#{sha.first(7)}", "https://github.com/#{repository}/tree/#{sha}" %></dd>
+      <% elsif repository %>
+        <dt>Imported repository</dt><dd><%= repository %></dd>
+      <% end %>
+      <dt>Via</dt><dd>Seeded from the legacy marketplace listing (the commit its review recorded)</dd>
+    <% elsif provenance["provider"] == "github" ||
+             (provenance["source"].blank? && provenance["provider"].blank? && repository && sha) %>
+      <% if repository && sha %>
+        <dt>CI identity</dt>
+        <dd><%= link_to "#{repository}@#{sha.first(7)}", "https://github.com/#{repository}/commit/#{sha}" %></dd>
+      <% end %>
+      <% if workflow %>
+        <dt>Workflow</dt><dd><code><%= workflow %></code></dd>
+      <% end %>
+      <dt>Via</dt><dd>OIDC trusted publishing (job identity, not a build attestation)</dd>
+    <% else %>
+      <dt>Via</dt><dd><code><%= provenance["source"].presence || provenance["provider"].presence || "registry metadata" %></code></dd>
+    <% end %>
+  </dl>
+</section>

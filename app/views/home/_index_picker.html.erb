@@ -1,0 +1,138 @@
+<% picker_total = @total %>
+<% range_start = @plugins.empty? ? 0 : (@page - 1) * @per_page + 1 %>
+<% range_end = @plugins.empty? ? 0 : [range_start + @plugins.size - 1, picker_total].min %>
+<% context_path = [
+     ("query:#{@query}" if @query.present?),
+     ("category:#{@category}" if @category),
+     ("tag:#{@tag}" if @tag)
+   ].compact.join(" + ").presence %>
+<div class="index-picker"
+  data-index-picker-target="picker"
+  data-index-picker-page-value="<%= @page %>"
+  data-index-picker-per-page-value="<%= @per_page %>"
+  data-index-picker-total-value="<%= picker_total %>"
+  data-index-picker-more-value="<%= @more %>"
+  data-index-picker-endpoint-value="<%= directory_json_path %>"
+  data-action="wheel->index-picker#wheel:!passive">
+  <%
+    registry_categories = Registry::Taxonomy::CATEGORIES.filter_map do |category|
+      count = @category_counts.fetch(category, 0)
+      [ category, count ] if count.positive? || @category == category || category == "kids"
+    end
+    security_count = @tag_counts.fetch("security", 0)
+  %>
+  <header class="index-picker__layer-head" id="browse-filters">
+    <span data-index-picker-target="visibleCategories" tabindex="-1">
+      <% if registry_categories.any? %>
+        <% registry_categories.each do |category, count| %>
+          <% category_active = @category == category %>
+          <% category_label = Registry::Taxonomy.label(category).downcase %>
+          <%= link_to directory_path(category: (category_active ? nil : category)),
+                class: [ "index-picker__filter-option", "index-picker__category", { "is-active": category_active } ],
+                aria: { label: (category_active ? "Clear #{category_label} category filter, #{count} registry plugins" : "Filter by #{category_label} category, #{count} registry plugins") },
+                data: { category: category, action: "click->index-picker#toggleCategory" } do %>
+            <span><%= category_label %> <strong><%= count %></strong></span>
+          <% end %>
+        <% end %>
+        <% if security_count.positive? || @tag == "security" %>
+          <% security_active = @tag == "security" %>
+          <%= link_to directory_path(tag: (security_active ? nil : "security")),
+                class: [ "index-picker__filter-option", "index-picker__tag", { "is-active": security_active } ],
+                aria: { label: (security_active ? "Clear security tag filter, #{security_count} registry plugins" : "Filter by security tag, #{security_count} registry plugins") },
+                data: { tag: "security", action: "click->index-picker#toggleTag" } do %>
+            <span>security <strong><%= security_count %></strong></span>
+          <% end %>
+        <% end %>
+      <% else %>
+        <i class="index-picker__category" data-category="other">none</i>
+      <% end %>
+    </span>
+  </header>
+
+  <nav class="index-picker__grid" id="plugin-results" aria-label="Plugin matches"
+       data-index-picker-target="results">
+    <% @plugins.each do |plugin| %>
+      <%= render "home/index_picker_row", plugin: %>
+    <% end %>
+    <% (HomeController::PER_PAGE - @plugins.size).times do |index| %>
+      <% if index.zero? && @plugins.empty? && @page > 1 %>
+        <%= link_to directory_path(page: nil), class: "index-picker__card index-picker__card--empty" do %>
+          <b>No plugins on this page.<br>Back to the first page →</b>
+        <% end %>
+      <% else %>
+        <span class="index-picker__card index-picker__card--empty" aria-hidden="true">
+          <% if index.zero? && @plugins.empty? %>
+            <b><%= @query.present? || @category || @tag ? "No plugins match this search." : "No plugins published yet." %></b>
+          <% else %>
+            <i>~</i>
+          <% end %>
+        </span>
+      <% end %>
+    <% end %>
+  </nav>
+
+  <% total_pages = [(@total.to_f / @per_page).ceil, 1].max %>
+  <footer class="index-picker__status">
+    <span class="index-picker__status-left">
+      <span class="index-picker__status-item"><b>nav</b><span aria-hidden="true">/</span></span>
+      <span class="index-picker__status-item">
+        <%= link_to "home", directory_path(page: nil), class: "index-picker__home",
+              data: { action: "index-picker#firstPage" } %>
+      </span>
+      <span class="visually-hidden" data-index-picker-target="breadcrumb">all<%= " › #{context_path}" if context_path %> › results</span>
+    </span>
+    <nav class="index-picker__pagination" aria-label="Plugin result pages">
+      <%= link_to directory_path(page: (@page - 1 if @page - 1 > 1)),
+        hidden: @page <= 1, aria: { label: "Previous nine plugin results" },
+        data: { index_picker_target: "previous", action: "index-picker#previousPage" } do %>
+        <span aria-hidden="true">←</span>
+      <% end %>
+      <%= form_with url: root_path, method: :get, class: "index-picker__page-form",
+            data: { action: "submit->index-picker#jumpPage" } do %>
+        <% if @query.present? %><input type="hidden" name="q" value="<%= @query %>"><% end %>
+        <% if @sort != "downloads" %><input type="hidden" name="sort" value="<%= @sort %>"><% end %>
+        <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
+        <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
+        <label class="index-picker__page" data-index-picker-target="pageStatus">
+          <input type="number" name="page" min="1" max="<%= total_pages %>" value="<%= @page %>"
+                 inputmode="numeric" aria-label="Jump to result page" style="--page-digits: <%= @page.to_s.length %>"
+                 data-index-picker-target="pageInput" data-action="input->index-picker#resizePageInput">
+          <span>/ <b data-index-picker-target="pageTotal"><%= total_pages %></b></span>
+        </label>
+      <% end %>
+      <%= link_to directory_path(page: @page + 1),
+        hidden: !@more, aria: { label: "Next nine plugin results" },
+        data: { index_picker_target: "next", action: "index-picker#nextPage" } do %>
+        <span aria-hidden="true">→</span>
+      <% end %>
+    </nav>
+    <span class="index-picker__keys">
+      <span class="index-picker__key-hint" tabindex="0" aria-describedby="browse-hint-move"
+            data-action="mouseenter->index-picker#resetKeyHint focus->index-picker#resetKeyHint blur->index-picker#resetKeyHint keydown->index-picker#dismissKeyHint">
+        <strong>←→↑↓ / wheel</strong>
+        <span id="browse-hint-move" class="index-picker__key-tooltip" role="tooltip">Move between plugin cards</span>
+      </span>
+      <span class="index-picker__key-hint" tabindex="0" aria-describedby="browse-hint-enter"
+            data-action="mouseenter->index-picker#resetKeyHint focus->index-picker#resetKeyHint blur->index-picker#resetKeyHint keydown->index-picker#dismissKeyHint">
+        <strong>enter</strong>
+        <span id="browse-hint-enter" class="index-picker__key-tooltip" role="tooltip">Open the selected plugin</span>
+      </span>
+      <span class="index-picker__key-hint" tabindex="0" aria-describedby="browse-hint-space"
+            data-action="mouseenter->index-picker#resetKeyHint focus->index-picker#resetKeyHint blur->index-picker#resetKeyHint keydown->index-picker#dismissKeyHint">
+        <strong>space</strong>
+        <span id="browse-hint-space" class="index-picker__key-tooltip" role="tooltip">Copy the install command</span>
+      </span>
+      <span class="index-picker__key-hint" tabindex="0" aria-describedby="browse-hint-backspace"
+            data-action="mouseenter->index-picker#resetKeyHint focus->index-picker#resetKeyHint blur->index-picker#resetKeyHint keydown->index-picker#dismissKeyHint">
+        <strong>backspace</strong>
+        <span id="browse-hint-backspace" class="index-picker__key-tooltip" role="tooltip">Previous Browse level or result page</span>
+      </span>
+      <span class="index-picker__key-hint" tabindex="0" aria-describedby="browse-hint-page"
+            data-action="mouseenter->index-picker#resetKeyHint focus->index-picker#resetKeyHint blur->index-picker#resetKeyHint keydown->index-picker#dismissKeyHint">
+        <strong>pgup / pgdn</strong>
+        <span id="browse-hint-page" class="index-picker__key-tooltip" role="tooltip">Previous or next result page</span>
+      </span>
+    </span>
+  </footer>
+  <span class="visually-hidden" role="status" aria-live="polite" data-index-picker-target="live"></span>
+</div>

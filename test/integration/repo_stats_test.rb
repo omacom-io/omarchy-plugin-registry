@@ -25,7 +25,7 @@ class RepoStatsTest < ActionDispatch::IntegrationTest
     assert_nil Registry::RepoStats.github_repository(nil)
   end
 
-  test "sync stores stats and the pages render them" do
+  test "sync stores stats and the plugin surfaces render them" do
     with_stats_lookup({ "stars" => 42, "pushed_at" => 2.days.ago.iso8601,
                         "release_tag" => "v1.0.0", "release_url" => "https://github.com/acme/omarchy-weather/releases/tag/v1.0.0" }) do
       Registry::RepoStats.sync!(@plugin)
@@ -34,8 +34,8 @@ class RepoStatsTest < ActionDispatch::IntegrationTest
     assert_equal 42, @plugin.reload.repo_stars
     assert @plugin.repo_stats_synced_at.present?
 
-    get "/"
-    assert_match "★ 42", response.body
+    get directory_json_path
+    assert_equal 42, response.parsed_body["plugins"].sole.dig("repository", "stars")
     get "/plugins/acme/weather"
     assert_match "★ 42", response.body
     assert_match "v1.0.0", response.body

@@ -6,7 +6,7 @@ json.id plugin.manifest_id
 json.publisher plugin.publisher.name
 json.name plugin.name
 json.full_name plugin.full_name
-json.summary plugin.summary
+json.summary(plugin.summary&.each_char&.take(Registry::ManifestValidator::MAX_DESCRIPTION_LENGTH)&.join)
 json.kinds plugin.kinds
 json.category plugin.category
 json.category_label plugin.category && Registry::Taxonomy.label(plugin.category)

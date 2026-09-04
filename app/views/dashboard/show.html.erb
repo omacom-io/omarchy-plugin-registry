@@ -1,186 +1,314 @@
 <% content_for :title, "Dashboard — Omarchy Plugins" %>
-<div class="content-page container">
-  <p class="eyebrow">Dashboard</p>
-  <h1>Hey, <%= @user.name&.split(" ")&.first || @user.email_address %>.</h1>
-  <p class="lede">
-    <% unless @user.second_factor? %>
-      <%= link_to "Add a passkey or enable two-factor auth", settings_two_factor_path %> to unlock publishing.
-    <% else %>
-      Ready to ship. See the <%= link_to "publishing guide", publishing_path %> for the two-minute walkthrough.
-    <% end %>
-  </p>
+<section class="terminal-page account-page">
+  <article class="terminal-window terminal-window--ansi account-terminal" aria-labelledby="dashboard-title">
+    <%= render "shared/terminal_window_header", title: "Account dashboard",
+          route_alias: "account/dashboard", status: (@user.second_factor? ? "publish ready" : "factor required"),
+          action_path: settings_two_factor_path, action_label: "security",
+          command: "omarchy account status", cursor: false %>
 
-  <% pending_invites = @user.memberships.pending.includes(:publisher) %>
-  <% if pending_invites.any? %>
-    <section>
-      <h2>Invitations</h2>
-      <table class="table u-max-mid">
-        <tbody>
-          <% pending_invites.each do |invite| %>
-            <tr>
-              <td><strong><%= invite.publisher.name %></strong> invited you as <%= invite.role %></td>
-              <td class="actions">
-                <%= button_to "Accept", accept_invitation_path(invite), class: "button button--small" %>
-                <%= button_to "Decline", decline_invitation_path(invite), class: "button button--ghost button--small" %>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </section>
-  <% end %>
+    <div class="terminal-window__layout">
+      <nav class="terminal-window__index terminal-window__index--tree" aria-label="Account sections"
+           data-controller="terminal-tree" data-terminal-tree-activate-last-at-bottom-value="true">
+        <div class="terminal-window__index-inner">
+          <b>Tree ./account</b>
+          <div class="terminal-window__tree">
+            <%= link_to "#overview", class: "is-active", aria: { current: "location" },
+                  data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>overview</span>
+            <% end %>
+            <%= link_to "#namespaces", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>namespaces</span>
+            <% end %>
+            <%= link_to "#tokens", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>tokens</span>
+            <% end %>
+            <%= link_to "#trusted", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>trusted</span>
+            <% end %>
+            <%= link_to "#organizations", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">├─</span><span>organizations</span>
+            <% end %>
+            <%= link_to "#session", data: { terminal_tree_target: "link", action: "terminal-tree#select" } do %>
+              <span class="terminal-window__tree-branch" aria-hidden="true">└─</span><span>session</span>
+            <% end %>
+          </div>
+        </div>
+      </nav>
 
-  <% if flash[:minted_token] %>
-    <div class="token-reveal" data-controller="clipboard"
-         data-clipboard-text-value="<%= flash[:minted_token] %>">
-      <p class="eyebrow">Copy this token now — it won't be shown again</p>
-      <div class="token-reveal__row">
-        <code><%= flash[:minted_token] %></code>
-        <%= render "shared/copy_button", label: "Copy token" %>
+      <div class="terminal-window__main terminal-window__main--wide account-terminal__main">
+        <header id="overview" class="account-overview">
+          <div class="account-overview__topline">
+            <span>ACCOUNT</span><span translate="no">USR-<%= @user.id.to_s.rjust(3, "0") %></span>
+          </div>
+          <h1 id="dashboard-title">Hey, <%= @user.name&.split(" ")&.first || @user.email_address %>.</h1>
+          <p class="terminal-window__lede">
+            <% unless @user.second_factor? %>
+              <%= link_to "Add a passkey or enable two-factor authentication", settings_two_factor_path %> to unlock publishing.
+            <% else %>
+              Ready to ship. See the <%= link_to "publishing guide", publishing_path %> for the two-minute walkthrough.
+            <% end %>
+          </p>
+          <div class="account-overview__strip" aria-label="Account summary">
+            <span><b><%= @publishers.size %></b> namespaces</span>
+            <span><b><%= @tokens.size %></b> usable tokens</span>
+            <span><b><%= @trusted_publishers.size %></b> trusted publishers</span>
+            <span class="account-overview__state"><%= @user.second_factor? ? "◆ publish ready" : "◇ factor required" %></span>
+          </div>
+        </header>
+
+        <% if @pending_invites.any? %>
+          <section class="account-panel" aria-labelledby="invitations-title">
+            <div class="account-panel__head">
+              <span>INVITATIONS</span><span><%= @pending_invites.size %> pending</span>
+            </div>
+            <div class="account-panel__body">
+              <h2 id="invitations-title" class="terminal-section__title">Namespace invitations</h2>
+              <div class="account-table-wrap">
+                <table class="table">
+                  <tbody>
+                    <% @pending_invites.each do |invite| %>
+                      <tr>
+                        <td><strong><%= invite.publisher.name %></strong> invited you as <%= invite.role %></td>
+                        <td class="actions">
+                          <%= button_to "Accept", accept_invitation_path(invite), class: "button account-button" %>
+                          <%= button_to "Decline", decline_invitation_path(invite), class: "button button--ghost account-button",
+                                form: { data: { turbo_confirm: "Decline the invitation to #{invite.publisher.name}?" } } %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        <% end %>
+
+        <% if flash[:minted_token] %>
+          <section class="token-reveal account-token-reveal" data-controller="clipboard"
+                   data-clipboard-text-value="<%= flash[:minted_token] %>" aria-labelledby="token-reveal-title">
+            <p id="token-reveal-title" class="eyebrow">Copy this token now — it won’t be shown again</p>
+            <div class="token-reveal__row">
+              <code><%= flash[:minted_token] %></code>
+              <%= render "shared/copy_button", label: "Copy token" %>
+            </div>
+          </section>
+        <% end %>
+
+        <section id="namespaces" class="account-section" aria-labelledby="namespaces-title">
+          <h2 id="namespaces-title" class="terminal-section__title"><span aria-hidden="true">$ </span>ls namespaces/</h2>
+          <div class="account-panel-stack">
+            <% @publishers.each do |publisher| %>
+              <article class="account-panel account-namespace">
+                <div class="account-panel__head">
+                  <span><%= publisher.org? ? "ORGANIZATION" : "PERSONAL NAMESPACE" %></span>
+                  <span translate="no">NS-<%= publisher.id.to_s.rjust(3, "0") %></span>
+                </div>
+                <div class="account-panel__body">
+                  <div class="account-namespace__title">
+                    <h3><%= publisher.name %></h3>
+                    <% if publisher.org? %><span class="badge">org</span><% end %>
+                  </div>
+                  <div class="account-namespace__strip">
+                    <span><b><%= publisher.plugins.size %></b> plugins</span>
+                    <% if publisher.org? %><span><b><%= publisher.memberships.size %></b> members</span><% end %>
+                  </div>
+
+                  <% if publisher.org? && @user.owner_of?(publisher) %>
+                    <div class="account-table-wrap">
+                      <table class="table">
+                        <thead><tr><th>Member</th><th>Role</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                        <tbody>
+                          <% publisher.memberships.includes(:user).each do |membership| %>
+                            <tr>
+                              <td><%= membership.user.name || membership.user.email_address %></td>
+                              <td><%= membership.role %><%= ' <span class="badge badge--warning">invited</span>'.html_safe if membership.pending? %></td>
+                              <td class="actions">
+                                <%= button_to "Remove", remove_member_org_path(publisher, membership_id: membership.id),
+                                      class: "button button--ghost account-button",
+                                      form: { data: { turbo_confirm: "Remove this member from #{publisher.name}?" } } %>
+                              </td>
+                            </tr>
+                          <% end %>
+                        </tbody>
+                      </table>
+                    </div>
+                    <%= form_with url: invite_member_org_path(publisher), class: "account-form account-form--invite" do %>
+                      <div class="field">
+                        <label for="invite_email_<%= publisher.id %>">Member email</label>
+                        <input type="email" name="email_address" id="invite_email_<%= publisher.id %>" required
+                               autocomplete="email" spellcheck="false" placeholder="dev@example.com">
+                      </div>
+                      <div class="field">
+                        <label for="invite_role_<%= publisher.id %>">Role</label>
+                        <span class="account-select" data-controller="select-picker">
+                          <select name="role" id="invite_role_<%= publisher.id %>" class="select"
+                                  data-action="pointerdown->select-picker#open keydown->select-picker#prepare">
+                            <option value="publisher">publisher</option><option value="owner">owner</option>
+                          </select>
+                          <span aria-hidden="true">⌄</span>
+                        </span>
+                      </div>
+                      <button type="submit" class="button account-button">Invite member</button>
+                    <% end %>
+                  <% end %>
+
+                  <% if publisher.plugins.any? %>
+                    <div class="account-table-wrap">
+                      <table class="table">
+                        <thead><tr><th>Plugin</th><th>Latest</th><th>Downloads</th><th>State</th></tr></thead>
+                        <tbody>
+                          <% publisher.plugins.each do |plugin| %>
+                            <tr>
+                              <td><%= link_to plugin.name, plugin_path(publisher.name, plugin.name) %></td>
+                              <td><%= plugin.latest_version || "—" %></td>
+                              <td><%= compact_number(plugin.downloads_count) %></td>
+                              <td><%= state_badge(plugin.state) %></td>
+                            </tr>
+                          <% end %>
+                        </tbody>
+                      </table>
+                    </div>
+                  <% else %>
+                    <p class="account-empty">No plugins yet in this namespace.</p>
+                  <% end %>
+                </div>
+              </article>
+            <% end %>
+          </div>
+        </section>
+
+        <section id="tokens" class="account-panel account-section" aria-labelledby="tokens-title">
+          <div class="account-panel__head"><span>CREDENTIALS</span><span>7-day expiry</span></div>
+          <div class="account-panel__body">
+            <h2 id="tokens-title" class="terminal-section__title">Publish tokens</h2>
+            <p>Push-only and scoped to one plugin. Mint a fresh token when you need it.</p>
+            <% if @tokens.any? %>
+              <div class="account-table-wrap">
+                <table class="table">
+                  <thead><tr><th>Token</th><th>Scope</th><th>Expires</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                  <tbody>
+                    <% @tokens.each do |token| %>
+                      <tr>
+                        <td><code><%= token.token_hint %></code></td>
+                        <td><%= token.scope_label %></td>
+                        <td><%= time_ago_in_words(token.expires_at) %></td>
+                        <td class="actions">
+                          <%= button_to "Revoke", token_path(token), method: :delete,
+                                class: "button button--ghost account-button",
+                                form: { data: { turbo_confirm: "Revoke this publish token?" } } %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+            <%= form_with url: tokens_path, class: "account-form account-form--token" do %>
+              <div class="field">
+                <label for="publisher_name">Namespace</label>
+                <span class="account-select" data-controller="select-picker">
+                  <select name="publisher_name" id="publisher_name" class="select"
+                          data-action="pointerdown->select-picker#open keydown->select-picker#prepare">
+                    <% @publishers.each do |publisher| %><option value="<%= publisher.name %>"><%= publisher.name %></option><% end %>
+                  </select>
+                  <span aria-hidden="true">⌄</span>
+                </span>
+              </div>
+              <div class="field">
+                <label for="plugin_name">Plugin name</label>
+                <input type="text" name="plugin_name" id="plugin_name" required pattern="[a-z0-9][a-z0-9_-]*"
+                       autocomplete="off" spellcheck="false" placeholder="weather">
+              </div>
+              <button type="submit" class="button account-button">Mint token</button>
+            <% end %>
+          </div>
+        </section>
+
+        <section id="trusted" class="account-panel account-section" aria-labelledby="trusted-title">
+          <div class="account-panel__head"><span>OIDC</span><span>GitHub Actions</span></div>
+          <div class="account-panel__body">
+            <h2 id="trusted-title" class="terminal-section__title">Trusted publishing</h2>
+            <p>Publish from CI with no stored secret. Bind a repository, workflow, and environment to one plugin.</p>
+            <% if @trusted_publishers.any? %>
+              <div class="account-table-wrap">
+                <table class="table">
+                  <thead><tr><th>Scope</th><th>Repository</th><th>Workflow</th><th>Environment</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                  <tbody>
+                    <% @trusted_publishers.each do |trusted_publisher| %>
+                      <tr>
+                        <td><%= trusted_publisher.publisher.name %>/<%= trusted_publisher.plugin_name %></td>
+                        <td><code><%= trusted_publisher.repository %></code></td>
+                        <td><code><%= trusted_publisher.workflow %></code></td>
+                        <td><%= trusted_publisher.environment %></td>
+                        <td class="actions">
+                          <%= button_to "Remove", trusted_publisher_path(trusted_publisher), method: :delete,
+                                class: "button button--ghost account-button",
+                                form: { data: { turbo_confirm: "Remove this trusted-publishing registration?" } } %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+            <%= form_with url: trusted_publishers_path, class: "account-form account-form--trusted" do %>
+              <div class="field">
+                <label for="trusted_publisher_name">Namespace</label>
+                <span class="account-select" data-controller="select-picker">
+                  <select name="publisher_name" id="trusted_publisher_name" class="select"
+                          data-action="pointerdown->select-picker#open keydown->select-picker#prepare">
+                    <% @publishers.each do |publisher| %><option value="<%= publisher.name %>"><%= publisher.name %></option><% end %>
+                  </select>
+                  <span aria-hidden="true">⌄</span>
+                </span>
+              </div>
+              <div class="field">
+                <label for="trusted_plugin_name">Plugin</label>
+                <input type="text" name="plugin_name" id="trusted_plugin_name" required pattern="[a-z0-9][a-z0-9_-]*"
+                       autocomplete="off" spellcheck="false" placeholder="weather">
+              </div>
+              <div class="field">
+                <label for="trusted_repository">Repository</label>
+                <input type="text" name="repository" id="trusted_repository" required autocomplete="off"
+                       spellcheck="false" placeholder="you/weather">
+              </div>
+              <div class="field">
+                <label for="trusted_workflow">Workflow</label>
+                <input type="text" name="workflow" id="trusted_workflow" required autocomplete="off"
+                       spellcheck="false" value=".github/workflows/publish.yml">
+              </div>
+              <div class="field">
+                <label for="trusted_environment">Environment</label>
+                <input type="text" name="environment" id="trusted_environment" autocomplete="off"
+                       spellcheck="false" value="release">
+              </div>
+              <button type="submit" class="button account-button">Register</button>
+            <% end %>
+          </div>
+        </section>
+
+        <section id="organizations" class="account-panel account-section" aria-labelledby="organizations-title">
+          <div class="account-panel__head"><span>TEAMS</span><span>shared namespaces</span></div>
+          <div class="account-panel__body account-panel__body--action">
+            <div>
+              <h2 id="organizations-title" class="terminal-section__title terminal-section__title--plain">Organizations</h2>
+              <p>Create a shared namespace with an explicit member roster.</p>
+            </div>
+            <%= link_to "Create an org", new_org_path, class: "button account-button" %>
+          </div>
+        </section>
+
+        <section id="session" class="account-panel account-section" aria-labelledby="session-title">
+          <div class="account-panel__head"><span>SESSION</span><span><%= @user.email_address %></span></div>
+          <div class="account-panel__body account-panel__body--action">
+            <div>
+              <h2 id="session-title" class="terminal-section__title terminal-section__title--plain">Current session</h2>
+              <p>Sign out on this browser without affecting your other sessions.</p>
+            </div>
+            <%= button_to "Sign out", session_path, method: :delete, class: "button button--ghost account-button" %>
+          </div>
+        </section>
       </div>
     </div>
-  <% end %>
-
-  <% @publishers.each do |publisher| %>
-    <section>
-      <h2><%= publisher.name %> <% if publisher.org? %><span class="badge">org</span><% end %></h2>
-      <% if publisher.org? && @user.owner_of?(publisher) %>
-        <table class="table u-max-narrow u-gap-bottom">
-          <thead><tr><th>Member</th><th>Role</th><th></th></tr></thead>
-          <tbody>
-            <% publisher.memberships.includes(:user).each do |membership| %>
-              <tr>
-                <td><%= membership.user.name || membership.user.email_address %></td>
-                <td><%= membership.role %><%= ' <span class="badge badge--warning">invited</span>'.html_safe if membership.pending? %></td>
-                <td class="actions">
-                  <%= button_to "Remove", remove_member_org_path(publisher, membership_id: membership.id),
-                        class: "button button--ghost button--small" %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-        <%= form_with url: invite_member_org_path(publisher), class: "form-inline u-gap-bottom-lg" do %>
-          <div class="field">
-            <label>Invite member by email</label>
-            <input type="email" name="email_address" required placeholder="dev@example.com">
-          </div>
-          <div class="field">
-            <label>Role</label>
-            <select name="role" class="select"><option value="publisher">publisher</option><option value="owner">owner</option></select>
-          </div>
-          <button type="submit" class="button button--small">Invite</button>
-        <% end %>
-      <% end %>
-      <% if publisher.plugins.any? %>
-        <table class="table">
-          <thead><tr><th>Plugin</th><th>Latest</th><th>Downloads</th><th>State</th></tr></thead>
-          <tbody>
-            <% publisher.plugins.each do |plugin| %>
-              <tr>
-                <td><%= link_to plugin.name, plugin_path(publisher.name, plugin.name) %></td>
-                <td><%= plugin.latest_version || "—" %></td>
-                <td><%= compact_number(plugin.downloads_count) %></td>
-                <td><%= state_badge(plugin.state) %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      <% else %>
-        <p class="muted">No plugins yet in this namespace.</p>
-      <% end %>
-    </section>
-  <% end %>
-
-  <section>
-    <h2>Publish tokens</h2>
-    <p class="lede">Push-only, scoped to one plugin, and they expire in 7 days — mint a fresh
-      one when you need it.</p>
-    <% if @tokens.any? %>
-      <table class="table">
-        <thead><tr><th>Token</th><th>Scope</th><th>Expires</th><th></th></tr></thead>
-        <tbody>
-          <% @tokens.each do |token| %>
-            <tr>
-              <td><code><%= token.token_hint %></code></td>
-              <td><%= token.scope_label %></td>
-              <td><%= time_ago_in_words(token.expires_at) %></td>
-              <td class="actions"><%= button_to "Revoke", token_path(token), method: :delete, class: "button button--ghost button--small" %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% end %>
-    <%= form_with url: tokens_path, class: "form-inline" do |form| %>
-      <div class="field">
-        <label for="publisher_name">Namespace</label>
-        <select name="publisher_name" id="publisher_name" class="select">
-          <% @publishers.each do |publisher| %><option value="<%= publisher.name %>"><%= publisher.name %></option><% end %>
-        </select>
-      </div>
-      <div class="field">
-        <label for="plugin_name">Plugin name</label>
-        <input type="text" name="plugin_name" id="plugin_name" required pattern="[a-z0-9][a-z0-9_-]*" placeholder="weather">
-      </div>
-      <button type="submit" class="button">Mint token</button>
-    <% end %>
-  </section>
-
-  <section>
-    <h2>Trusted publishing</h2>
-    <p class="lede">Publish from CI with no stored secret: register a repo + workflow +
-      environment once, and tagging a release publishes via OIDC. GitHub Actions today.</p>
-    <% trusted = TrustedPublisher.where(publisher: @publishers).includes(:publisher) %>
-    <% if trusted.any? %>
-      <table class="table">
-        <thead><tr><th>Scope</th><th>Repository</th><th>Workflow</th><th>Environment</th><th></th></tr></thead>
-        <tbody>
-          <% trusted.each do |tp| %>
-            <tr>
-              <td><%= tp.publisher.name %>/<%= tp.plugin_name %></td>
-              <td><code><%= tp.repository %></code></td>
-              <td><code><%= tp.workflow %></code></td>
-              <td><%= tp.environment %></td>
-              <td class="actions"><%= button_to "Remove", trusted_publisher_path(tp), method: :delete, class: "button button--ghost button--small" %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% end %>
-    <%= form_with url: trusted_publishers_path, class: "form-inline" do |form| %>
-      <div class="field">
-        <label>Namespace</label>
-        <select name="publisher_name" class="select">
-          <% @publishers.each do |publisher| %><option value="<%= publisher.name %>"><%= publisher.name %></option><% end %>
-        </select>
-      </div>
-      <div class="field">
-        <label>Plugin</label>
-        <input type="text" name="plugin_name" required pattern="[a-z0-9][a-z0-9_-]*" placeholder="weather">
-      </div>
-      <div class="field">
-        <label>Repository</label>
-        <input type="text" name="repository" required placeholder="you/weather">
-      </div>
-      <div class="field">
-        <label>Workflow</label>
-        <input type="text" name="workflow" required value=".github/workflows/publish.yml">
-      </div>
-      <div class="field">
-        <label>Environment</label>
-        <input type="text" name="environment" value="release">
-      </div>
-      <button type="submit" class="button">Register</button>
-    <% end %>
-  </section>
-
-  <section>
-    <h2>Organizations</h2>
-    <p class="lede"><%= link_to "Create an org", new_org_path %> to share a namespace with a team.</p>
-  </section>
-
-  <section>
-    <h2>Session</h2>
-    <%= button_to "Sign out", session_path, method: :delete, class: "button button--ghost" %>
-  </section>
-</div>
+  </article>
+</section>

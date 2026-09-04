@@ -7,7 +7,10 @@ export default class extends Controller {
 
   connect() {
     this.shortcut = (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      const typing = /^(input|textarea|select)$/i.test(event.target.tagName) || event.target.isContentEditable
+      const ctrlK = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k"
+      const slash = event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey && !typing
+      if (ctrlK || slash) {
         event.preventDefault()
         this.inputTarget.focus()
         this.inputTarget.select()
@@ -18,5 +21,12 @@ export default class extends Controller {
 
   disconnect() {
     document.removeEventListener("keydown", this.shortcut)
+  }
+
+  focus(event) {
+    if (event.target.closest("a, button, input")) return
+    this.inputTarget.focus()
+    const end = this.inputTarget.value.length
+    this.inputTarget.setSelectionRange(end, end)
   }
 }

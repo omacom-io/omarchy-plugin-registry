@@ -1,99 +1,273 @@
-<section class="hero section-dark">
-  <div class="container">
-    <%= render "shared/logo", class: "glow-mark" %>
-    <p class="eyebrow">plugins.omarchy.org</p>
-    <h1>Plugins for people who love computers.</h1>
-    <p>Hosted, scanned, and revocable — every version is immutable, checksummed, and one
-      command away. Discovery belongs on a web page. This is the web page.</p>
-    <div class="hero__install">
-      <span class="prompt">$</span> omarchy plugin add <span class="prompt">publisher/name</span>
+<section class="hero band hero--reveal" data-controller="hero-reveal" data-action="focusin->hero-reveal#finish">
+  <div class="hero__copy">
+    <p class="hero__command" translate="no">
+      <span class="visually-hidden">registry@omarchy:~$ tree registry/</span>
+      <span class="hero__command-visual" aria-hidden="true">
+        <b class="hero__command-host">registry@omarchy</b><s>:~$</s><span class="hero__command-text">tree registry/</span><i class="hero__command-cursor"></i>
+      </span>
+    </p>
+    <h1 class="visually-hidden">Omarchy plugins — for people who love computers.</h1>
+    <%= render "shared/omarchy_wordmark", class: "hero__wm" %>
+    <p class="hero__lede">
+      <strong class="hero__lede-title"><span>Plugins</span> <span>for</span> <span>people</span> <span>who</span> <span>love</span> <span>computers.</span></strong>
+      <span class="hero__lede-body">Hosted, scanned, and revocable — every version is immutable, checksummed, and one command away. Discovery belongs on a web page. This is the web page.</span>
+    </p>
+    <div class="promptline promptline--live" translate="no" data-controller="ticker clipboard"
+         data-clipboard-text-value="omarchy plugin add publisher/name"
+         data-action="mouseenter->ticker#pause mouseleave->ticker#resume focusin->ticker#pause focusout->ticker#resume"
+         data-ticker-messages-value="<%= [
+           "omarchy plugin add publisher/name",
+           "We can fix everything!",
+           "IMMUTABLE · CHECKSUMMED · REVOCABLE",
+           "#{@stats[:plugins]} PLUGINS · #{@stats[:publishers]} PUBLISHERS",
+           "#{number_with_delimiter(@stats[:downloads])} INSTALLS · #{compact_number(@stats[:week]).upcase} LAST 7 DAYS"
+         ].to_json %>">
+      <span class="promptline__reveal">
+        <span class="promptline__host" aria-hidden="true" data-ticker-target="prefix">registry@omarchy<s>:~$</s></span>
+        <span class="promptline__screen" aria-hidden="true"><canvas data-ticker-target="canvas"></canvas></span>
+        <span class="promptline__copy">
+          <span class="promptline__install"><b aria-hidden="true">$</b> omarchy plugin add publisher/name</span>
+          <%= render "shared/copy_button", label: "Copy install command", text: "copy",
+                copied_text: "copied", copied_label: "Install command copied" %>
+        </span>
+      </span>
     </div>
-    <div class="hero__stats">
-      <div class="hero__stat"><b><%= @stats[:plugins] %></b><span>plugins</span></div>
-      <div class="hero__stat"><b><%= @stats[:publishers] %></b><span>publishers</span></div>
-      <div class="hero__stat"><b><%= compact_number(@stats[:downloads]) %></b><span>downloads</span></div>
+  </div>
+  <div class="fetch" data-controller="pacman" data-action="mouseenter->pacman#replay">
+    <div class="fetch__reveal">
+    <div class="fetch__body">
+      <div class="fetch__mark">
+        <%= render "shared/omarchy_logo", class: "fetch__logo" %>
+      </div>
+      <div class="fetch__info">
+        <div class="fetch__metric" aria-label="<%= pluralize(@stats[:plugins], 'registry plugin') %>">
+          <div class="fetch__head" translate="no">
+            <span class="fetch__cluster">
+              <strong><%= number_with_delimiter(@stats[:plugins]) %></strong>
+              <span class="fetch__metric-label"><span class="fetch__metric-label-community">community </span>plugins</span>
+            </span>
+          </div>
+          <div class="fetch__rule" aria-hidden="true"></div>
+        </div>
+        <div class="fetch__rows">
+          <div class="fetch__row" data-pacman-target="stat" data-value="<%= @recent_total %>">
+            <span class="k">new / <%= ApplicationHelper::CARD_RECENCY.in_days.to_i %>d</span>
+            <span class="fetch__bar" aria-hidden="true" data-pacman-bar>[----------]</span>
+            <b data-pacman-num><%= number_with_delimiter(@recent_total) %></b>
+          </div>
+          <div class="fetch__row" data-pacman-target="stat" data-value="<%= @stats[:publishers] %>">
+            <span class="k">publishers</span>
+            <span class="fetch__bar" aria-hidden="true" data-pacman-bar>[----------]</span>
+            <b data-pacman-num><%= @stats[:publishers] %></b>
+          </div>
+          <div class="fetch__row" data-pacman-target="stat" data-value="<%= @stats[:downloads] %>">
+            <span class="k">installs</span>
+            <span class="fetch__bar" aria-hidden="true" data-pacman-bar>[----------]</span>
+            <b data-pacman-num><%= compact_number(@stats[:downloads]) %></b>
+          </div>
+          <div class="fetch__row" data-pacman-target="stat" data-value="<%= @stats[:week] %>">
+            <span class="k">last 7 days</span>
+            <span class="fetch__bar" aria-hidden="true" data-pacman-bar>[----------]</span>
+            <b data-pacman-num><%= compact_number(@stats[:week]) %></b>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% if @stats[:updated_at] %>
+      <% registry_updated_at = @stats[:updated_at].utc %>
+      <div class="fetch__prompt" translate="no">
+        <span><b>registry@omarchy</b><s aria-hidden="true">:~$</s></span>
+        <span class="fetch__cursor" aria-hidden="true"></span>
+        <span class="fetch__rprompt">updated <b><time datetime="<%= registry_updated_at.iso8601 %>"><%= compact_utc_timestamp(registry_updated_at) %></time></b></span>
+      </div>
+    <% end %>
     </div>
   </div>
 </section>
 
-<% if @recent&.any? %>
-  <section class="recent-band" aria-label="Recently added plugins">
-    <div class="container">
-      <div class="recent-band__head">
-        <p class="eyebrow">Recently added</p>
-        <%= link_to "sort by newest →", directory_path(sort: "newest"), class: "recent-band__more" %>
-      </div>
-      <div class="recent-band__row">
-        <% @recent.each do |plugin| %>
-          <%= link_to plugin_path(plugin.publisher.name, plugin.name), class: "recent-card" do %>
-            <span class="recent-card__name"><span class="ns"><%= plugin.publisher.name %>/</span><%= plugin.name %></span>
-            <span class="recent-card__summary"><%= plugin.summary %></span>
-            <span class="recent-card__meta"><span class="diamond">◆</span> v<%= plugin.latest_version %>
-              · <%= time_ago_in_words(Time.zone.parse(plugin.first_published_at.to_s)) %> ago</span>
-          <% end %>
+<% if @wanted&.any? %>
+  <section class="recent-band" aria-labelledby="most-wanted-title" data-index-recent
+           data-controller="recent-rotate plugin-share" data-recent-rotate-label-value="Most Wanted"
+           data-action="keydown->recent-rotate#keydown">
+    <div class="recent-band__layout">
+    <div class="boxtitle">
+      <span class="glyph" aria-hidden="true">┌─ </span><h2 id="most-wanted-title">Most Wanted</h2>
+      <span class="recent-band__count"
+            aria-label="Top <%= @wanted.size %> plugins ranked by 7-day installs, positive ratings, views, and lifetime installs"
+            title="Ranked by 7-day installs, positive ratings, views, then lifetime installs">
+        <strong><%= @wanted.size %></strong><small aria-hidden="true"> / stats</small>
+      </span>
+      <span class="recent-band__controls">
+        <% if @wanted.many? %>
+          <button type="button" class="recent-band__step" aria-label="Show previous Most Wanted plugin"
+                  aria-keyshortcuts="ArrowLeft" data-action="recent-rotate#previous"><span class="recent-band__step-symbol" aria-hidden="true">←</span> <span class="recent-band__step-label">previous</span><span class="recent-band__step-label-short" aria-hidden="true">prev</span></button>
         <% end %>
-      </div>
+        <%= link_to directory_path(q: nil, category: nil, tag: nil, page: nil, sort: "trending"), class: "lab recent-band__more" do %>
+          <span aria-hidden="true">$</span> sort -k trending
+        <% end %>
+        <% if @wanted.many? %>
+          <button type="button" class="recent-band__step" aria-label="Show next Most Wanted plugin"
+                  aria-keyshortcuts="ArrowRight" data-action="recent-rotate#next"><span class="recent-band__step-label">next</span><span class="recent-band__step-label-short" aria-hidden="true">next</span> <span class="recent-band__step-symbol" aria-hidden="true">→</span></button>
+        <% end %>
+      </span>
     </div>
+    <div class="recent-row <%= 'recent-row--single' unless @wanted.many? %>" data-recent-rotate-target="row">
+      <%= render "home/recent_card", plugin: @wanted.first, master: true, delay_ms: 0 %>
+      <% if @wanted.many? %>
+        <div class="recent-stack" data-recent-rotate-target="stack">
+          <% @wanted.drop(1).each_with_index do |plugin, index| %>
+            <%= render "home/recent_card", plugin:, master: false, delay_ms: 70 * (index + 1) %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    </div>
+    <span class="visually-hidden" role="status" aria-live="polite" data-recent-rotate-target="status"></span>
+    <span class="plugin-share__status" role="status" aria-live="polite"
+          data-plugin-share-target="status" hidden></span>
   </section>
 <% end %>
 
-<section class="directory container">
-  <%= form_with url: root_path, method: :get, class: "directory__bar", data: { controller: "search-focus" } do %>
-    <input type="search" name="q" value="<%= @query %>"
-      placeholder="Search plugins… (try @publisher, tag:media, kind:bar)" aria-label="Search plugins"
-      data-search-focus-target="input" aria-keyshortcuts="Control+K">
-    <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
-    <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
-    <kbd class="directory__kbd" title="Focus search">Ctrl K</kbd>
-    <div class="directory__sort">
-      <% HomeController::SORTS.each_key do |sort| %>
-        <%= link_to sort, directory_path(sort: (sort unless sort == "downloads")), class: ("active" if @sort == sort) %>
-      <% end %>
+<% if @recent&.any? %>
+  <section class="recent-stream" aria-labelledby="recent-title" data-controller="recent-stream plugin-share">
+    <div class="recent-stream__layout">
+    <div class="boxtitle">
+      <span class="glyph" aria-hidden="true">┌─ </span><h2 id="recent-title">Recently Added</h2>
+      <span class="recent-stream__count"
+            aria-label="<%= pluralize(@recent_total, 'plugin') %> first published in the last <%= ApplicationHelper::CARD_RECENCY.in_days.to_i %> days">
+        <strong><%= number_with_delimiter(@recent_total) %></strong><small aria-hidden="true"> / <%= ApplicationHelper::CARD_RECENCY.in_days.to_i %>d</small>
+      </span>
+      <span class="recent-stream__controls">
+        <%= link_to directory_path(q: nil, category: nil, tag: nil, page: nil, sort: "newest"), class: "recent-stream__more",
+              aria: { label: "Browse newest plugins" } do %>
+          <span aria-hidden="true">$</span><span class="recent-stream__sort-prefix"> sort -k</span> newest
+        <% end %>
+        <button type="button" class="recent-stream__toggle" aria-pressed="false" aria-label="Pause Recently Added"
+                data-recent-stream-target="toggle" data-action="recent-stream#toggle" hidden>pause <span class="recent-stream__toggle-symbol" aria-hidden="true">‖</span></button>
+      </span>
     </div>
-  <% end %>
+    <div class="recent-stream__viewport">
+      <div class="recent-stream__track">
+        <div class="recent-stream__group recent-stream__group--duplicate" aria-hidden="true">
+          <% @recent.each do |plugin| %>
+            <%= render "home/recent_stream_card", plugin:, duplicate: true %>
+          <% end %>
+        </div>
+        <div class="recent-stream__group">
+          <% @recent.each do |plugin| %>
+            <%= render "home/recent_stream_card", plugin:, duplicate: false %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    </div>
+    <span class="plugin-share__status" role="status" aria-live="polite"
+          data-plugin-share-target="status" hidden></span>
+  </section>
+<% end %>
 
-  <% if @category_counts.any? %>
-    <nav class="directory__filters" aria-label="Filter by category">
-      <%= link_to "All", directory_path(category: nil), class: "chip #{'chip--active' if @category.nil?}" %>
-      <% Registry::Taxonomy::CATEGORIES.each do |category| %>
-        <% count = @category_counts[category] %>
-        <% next unless count %>
-        <%= link_to directory_path(category: (category unless @category == category)),
-              class: "chip #{'chip--active' if @category == category}" do %>
-          <%= Registry::Taxonomy.label(category) %> <span class="chip__count"><%= count %></span>
+<% browse_context = [
+     ("query / #{@query}" if @query.present?),
+     ("category / #{@category}" if @category),
+     ("tag / #{@tag}" if @tag)
+   ].compact.join(" + ").presence %>
+<section id="browse" class="index-console <%= 'index-console--has-context' if browse_context %>" aria-labelledby="directory-title"
+         data-controller="index-picker browse-return"
+         data-index-picker-categories-value="<%= Registry::Taxonomy::CATEGORIES.to_json %>"
+         data-index-picker-category-labels-value="<%= Registry::Taxonomy::CATEGORIES.index_with { |category| Registry::Taxonomy.label(category).downcase }.to_json %>"
+         data-index-picker-filter-tags-value="<%= HomeController::FILTER_TAGS.to_json %>"
+         data-index-picker-tags-value="<%= Registry::Taxonomy::TAGS.to_json %>">
+  <% range_start = @plugins.empty? ? 0 : (@page - 1) * @per_page + 1 %>
+  <% range_end = @plugins.empty? ? 0 : [range_start + @plugins.size - 1, @total].min %>
+  <div class="index-browse__title">
+    <span class="glyph" aria-hidden="true">┌─ </span><h2 id="directory-title">Browse</h2>
+    <span class="index-browse__range" data-index-picker-target="resultRange">
+      <strong><%= range_start %>–<%= range_end %></strong><span aria-hidden="true"> / </span><b><%= number_with_delimiter(@total) %></b>
+    </span>
+    <span class="index-browse__rule" aria-hidden="true"></span>
+    <details class="index-browse__sort">
+      <summary aria-label="Show plugin sort options" data-action="click->index-picker#toggleSortDisclosure">
+        <span aria-hidden="true"><i>$</i> sort -k</span><b aria-hidden="true">→</b>
+      </summary>
+      <nav class="index-browse__sort-options" aria-label="Sort plugins">
+        <% HomeController::SORTS.each_key do |sort| %>
+          <%= link_to sort, directory_path(sort: (sort unless sort == "downloads")),
+                class: ("is-active" if @sort == sort), aria: { current: ("page" if @sort == sort) },
+                data: { index_picker_target: "sortLink", sort: sort, action: "click->index-picker#sort" } %>
         <% end %>
-      <% end %>
-      <% if @tag %>
-        <%= link_to directory_path(tag: nil), class: "chip chip--active", title: "Clear tag filter" do %>
-          tag:<%= @tag %> <span aria-hidden="true">×</span>
-        <% end %>
+      </nav>
+    </details>
+  </div>
+
+  <div class="index-search <%= 'is-active' if @query.present? %>">
+    <%= form_with url: root_path, method: :get, class: "index-search__form",
+          data: { controller: "search-focus", index_picker_target: "form", action: "click->search-focus#focus" } do %>
+      <span class="index-search__entry">
+        <span class="index-search__cursor" aria-hidden="true"></span>
+        <span class="index-search__input-wrap">
+          <input type="search" name="q" value="<%= @query %>" autocomplete="off" spellcheck="false"
+            placeholder="name, publisher, category, tag, kind, or phrase…" aria-label="Search plugins"
+            aria-describedby="search-match-count search-suggestion-status" aria-autocomplete="both"
+            aria-controls="search-suggestions plugin-results" aria-expanded="false" aria-haspopup="listbox"
+            data-search-focus-target="input" data-index-picker-target="input"
+            data-action="input->index-picker#search keydown->index-picker#inputKeydown focus->index-picker#openSuggestions blur->index-picker#scheduleCloseSuggestions"
+            role="combobox"
+            aria-keyshortcuts="/ Control+K Escape ArrowRight ArrowUp ArrowDown Alt+ArrowUp Alt+ArrowDown Control+N Control+P">
+          <span class="index-search__fish" aria-hidden="true" hidden data-index-picker-target="fishPreview">
+            <span data-index-picker-target="fishPrefix"></span><b data-index-picker-target="fishSuffix"></b>
+          </span>
+        </span>
+      </span>
+      <% if @sort != "downloads" %><input type="hidden" name="sort" value="<%= @sort %>"><% end %>
+      <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
+      <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
+      <span id="search-match-count" class="index-search__result" role="status" aria-live="polite" aria-atomic="true"
+            aria-label="<%= pluralize(@total, 'plugin') %> found for <%= @query %>" data-state="live"
+            data-index-picker-target="searchMatchCount" <%= "hidden" if @query.blank? %>>
+        <b><%= number_with_delimiter(@total) %></b>
+      </span>
+      <button type="button" class="index-search__clear" aria-label="Clear search query"
+        title="Clear search query — Tab, then Enter or Space"
+        data-index-picker-target="clear" data-action="index-picker#clearSearch" <%= "hidden" if @query.blank? %>>
+        <span aria-hidden="true">×</span><small aria-hidden="true">esc</small>
+      </button>
+      <%= link_to "reset", directory_path(q: nil, category: nil, tag: nil), class: "index-search__reset", aria: { label: "Reset search and filters" } %>
+      <kbd title="Focus search">/ · ctrl k</kbd>
+      <button type="button" class="index-search__filter-toggle" aria-label="Show plugin filters"
+        aria-controls="browse-filters" aria-expanded="false" data-index-picker-target="filterToggle"
+        data-action="index-picker#toggleFilters" hidden>filter</button>
+    <% end %>
+    <% search_examples = [ "wireguard", "@publisher", "author:publisher", "plugin:weather",
+                           "kind:bar-widget", "tag:media", "category:system", 'text:"power profile"' ] %>
+    <nav class="index-search__examples" aria-label="Search examples">
+      <b>try:</b>
+      <% search_examples.each do |example| %>
+        <%= link_to example, root_path(q: example), translate: "no" %>
       <% end %>
     </nav>
-  <% end %>
-
-  <% if @query.present? || @category || @tag %>
-    <p class="muted directory__count" role="status"><%= pluralize(@total, "plugin") %> found</p>
-  <% end %>
-
-  <% if @plugins.any? %>
-    <div class="plugin-grid">
-      <%= render partial: "plugin_card", collection: @plugins, as: :plugin %>
-    </div>
-  <% elsif @page > 1 %>
-    <p class="muted">Nothing on this page — <%= link_to "back to the first page", directory_path %>.</p>
-  <% else %>
-    <p class="muted"><% if @query.present? || @category || @tag %>Nothing matches<%= " “#{@query}”" if @query.present? %> — <%= link_to "clear filters", root_path %>.<% else %>No plugins published yet — <%= link_to "be the first", publishing_path %>.<% end %></p>
-  <% end %>
-
-  <% if @page > 1 || @more %>
-    <div class="form-inline u-gap-top directory__pager">
-      <% if @page > 1 %>
-        <%= link_to "← Prev", directory_path(page: (@page - 1 if @page - 1 > 1)), class: "button button--ghost button--small" %>
-      <% end %>
-      <span class="muted">Page <%= @page %></span>
-      <% if @more %>
-        <%= link_to "Next →", directory_path(page: @page + 1), class: "button button--ghost button--small" %>
+    <div id="search-suggestions" class="index-search__suggestions" role="listbox" aria-label="Search suggestions"
+         hidden data-index-picker-target="suggestions">
+      <div class="index-search__suggestion-summary" role="presentation" aria-hidden="true">
+        <span>complete “<%= @query %>”</span><small>↓ choose · → / enter accept</small>
+      </div>
+      <% @search_suggestions.each_with_index do |suggestion, index| %>
+        <button id="search-suggestion-<%= index %>" type="button" role="option" tabindex="-1" aria-selected="false"
+                data-completion="<%= suggestion[:completion] %>" data-suggestion-type="<%= suggestion[:type] %>"
+                data-suggestion-label="<%= suggestion[:label] %>" data-suggestion-detail="<%= suggestion[:detail] %>"
+                data-index-picker-target="suggestion"
+                data-action="pointerdown->index-picker#keepSuggestionFocus click->index-picker#acceptSuggestion">
+          <span><%= suggestion[:label] %></span>
+          <small><%= suggestion[:type] %><%= " · #{suggestion[:detail]}" if suggestion[:detail].present? %></small>
+        </button>
       <% end %>
     </div>
-  <% end %>
+    <span id="search-suggestion-status" class="visually-hidden" role="status" aria-live="polite"
+          data-index-picker-target="suggestionStatus"></span>
+  </div>
+
+  <div class="index-browse-stack">
+    <%= render "home/index_picker" %>
+  </div>
+  <span class="index-picker__copy-status" role="status" aria-live="polite"
+        data-index-picker-target="copyStatus" hidden></span>
 </section>

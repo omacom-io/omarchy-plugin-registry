@@ -32,12 +32,27 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
   # --- directory -----------------------------------------------------------
 
+  test "directory JSON does not execute the HTML-only Most Wanted ranking" do
+    statements = []
+    subscriber = lambda do |_name, _start, _finish, _id, payload|
+      statements << payload[:sql] unless payload[:name] == "SCHEMA"
+    end
+
+    ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+      get directory_json_path
+    end
+
+    assert_response :success
+    assert statements.none? { |sql| sql.include?("AS week_downloads") }
+  end
+
   test "directory JSON lists plugins with the browse vocabulary attached" do
     get directory_json_path
     assert_response :success
     assert_equal "application/json", response.media_type
 
     assert_equal 1, body["schema_version"]
+    assert_match(/\A[a-f0-9]{64}\z/, body["catalog_revision"])
     entry = body["plugins"].sole
     assert_equal "acme.weather", entry["id"]
     assert_equal "acme/weather", entry["full_name"]
@@ -46,22 +61,53 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_equal "Widgets", entry["category_label"]
     assert_equal "omarchy plugin add acme/weather", entry["install_command"]
     assert_equal "http://registry.test/plugins/acme/weather", entry["url"]
+    assert_equal({ "type" => "sorted", "value" => "downloads" }, entry["match"])
+    assert_equal({ "new" => false, "upvotes" => 0, "views" => 0, "verified" => true, "size_bytes" => 2048 },
+      entry["card"])
+    assert_equal({ "parse" => "none", "scope" => "directory", "match" => "sorted" }, body["plan"])
+    assert_empty body["suggestions"]
 
     # Facets a client would otherwise have to hardcode
     assert_includes body["taxonomy"]["sorts"], "trending"
+    assert_includes body["taxonomy"]["search_operators"], "plugin:"
+    assert_includes body["taxonomy"]["search_operators"], "text:"
     assert_includes body["taxonomy"]["tags"], "weather"
-    widgets = body["taxonomy"]["categories"].find { |c| c["slug"] == "widgets" }
-    assert_equal({ "slug" => "widgets", "label" => "Widgets", "count" => 1 }, widgets)
+    categories = body["taxonomy"]["categories"].index_by { |category| category["slug"] }
+    assert_equal({ "slug" => "widgets", "label" => "Widgets", "count" => 1, "match_count" => 0 },
+      categories["widgets"])
+    assert_equal "Development", categories["developer-tools"]["label"]
+    assert_equal({ "slug" => "kids", "label" => "Kids", "count" => 0, "match_count" => 0 },
+      categories["kids"])
+    assert_equal({ "security" => 0 }, body["taxonomy"]["tag_counts"])
 
     assert_equal 1, body["page"]["number"]
     assert_equal 1, body["page"]["total"]
     refute body["page"]["more"]
   end
 
+  test "Security facet counts distinct directory-visible plugins only" do
+    visible = Plugin.create!(publisher: @acme, name: "secure", summary: "Security",
+      latest_version: "1.0.0", tags: %w[security security])
+    visible.versions.create!(version: "1.0.0", manifest: {}, sha256: "9" * 64,
+      size_bytes: 1, state: :published, published_at: 1.day.ago)
+    Plugin.create!(publisher: @acme, name: "unreleased-secure", summary: "Hidden", tags: [ "security" ])
+    Plugin.create!(publisher: @acme, name: "held-secure", summary: "Held",
+      latest_version: "1.0.0", tags: [ "security" ], state: :security_holding)
+
+    get directory_json_path
+    assert_equal 1, body.dig("taxonomy", "tag_counts", "security")
+
+    get root_path
+    assert_select "a.index-picker__tag[data-tag='security']", text: /security 1/i, count: 1
+  end
+
   test "directory JSON honours the same filters and typed operators as the page" do
     Plugin.create!(publisher: @acme, name: "mixer", summary: "Volume", latest_version: "1.0.0",
       category: "system", kinds: [ "bar-widget" ])
       .versions.create!(version: "1.0.0", manifest: {}, sha256: "2" * 64, size_bytes: 1,
+        state: :published, published_at: 1.day.ago)
+    Plugin.create!(publisher: @acme, name: "legacy", summary: "Uncategorized", latest_version: "1.0.0")
+      .versions.create!(version: "1.0.0", manifest: {}, sha256: "3" * 64, size_bytes: 1,
         state: :published, published_at: 1.day.ago)
 
     get directory_json_path(category: "widgets")
@@ -70,9 +116,55 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
     get directory_json_path(q: "tag:weather")
     assert_equal [ "weather" ], body["plugins"].map { |p| p["name"] }
+    assert_equal({ "parse" => "operator:tag", "scope" => "taxonomy tags", "match" => "exact tag" }, body["plan"])
+    assert_equal({ "type" => "tag", "value" => "weather" }, body["plugins"].sole["match"])
+    categories = body["taxonomy"]["categories"].index_by { |entry| entry["slug"] }
+    assert_equal 1, categories["widgets"]["match_count"]
+    assert_equal 0, categories["system"]["match_count"]
+
+    get directory_json_path(q: "wea")
+    assert_equal "weather", body["suggestions"].find { |suggestion| suggestion["type"] == "plugin" }["completion"]
+    assert_equal({ "parse" => "plain term", "scope" => "name + normalized + summary",
+                   "match" => "joined phrase substring" }, body["plan"])
+
+    get directory_json_path(q: "tag:weather wea")
+    assert_empty body["suggestions"], "mixed drafts stay on the canonical query path instead of suggesting an unscoped completion"
+
+    get directory_json_path(q: "plugin:weather")
+    assert_equal [ "weather" ], body["plugins"].map { |p| p["name"] }
+
+    get directory_json_path(q: "category:system", category: "widgets")
+    assert_empty body["plugins"]
+
+    [ "category:other", "other" ].each do |query|
+      get directory_json_path(q: query)
+      assert_equal [ "legacy" ], body["plugins"].map { |plugin| plugin["name"] }, query
+      assert_equal({ "type" => "category", "value" => "other" }, body["plugins"].sole["match"])
+    end
+
+    get directory_json_path(q: "othr")
+    legacy_match = body["plugins"].find { |plugin| plugin["name"] == "legacy" }
+    assert legacy_match, "fuzzy category search should include uncategorized plugins"
+    assert_equal({ "type" => "category", "value" => "other" }, legacy_match["match"])
+
+    get directory_json_path(q: "text:volume")
+    assert_equal [ "mixer" ], body["plugins"].map { |p| p["name"] }
 
     get directory_json_path(sort: "name")
-    assert_equal %w[mixer weather], body["plugins"].map { |p| p["name"] }
+    assert_equal %w[legacy mixer weather], body["plugins"].map { |p| p["name"] }
+  end
+
+  test "taxonomy suggestions bind and escape JSON candidate queries" do
+    get directory_json_path(q: "kind:bar")
+    assert_equal "kind:bar-widget", body["suggestions"].find { |entry| entry["type"] == "kind" }["completion"]
+
+    get directory_json_path(q: "tag:wea")
+    assert_equal "tag:weather", body["suggestions"].find { |entry| entry["type"] == "tag" }["completion"]
+
+    [ "kind:%", "kind:_", "kind:\\", 'kind:"', "tag:%", "tag:_", "tag:\\", 'tag:"' ].each do |query|
+      get directory_json_path(q: query)
+      assert_empty body["suggestions"], query
+    end
   end
 
   test "per_page widens the JSON page and is capped" do
@@ -111,14 +203,99 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
     assert_equal 31, seen.size
     assert_equal seen.uniq.size, seen.size, "a plugin must not repeat across pages"
+
+    revisions = (1..4).map do |number|
+      get directory_json_path(per_page: 10, page: number)
+      body["catalog_revision"]
+    end
+    assert_equal 1, revisions.uniq.size, "every page in an unchanged catalog must identify the same snapshot"
   end
 
-  test "the HTML grid ignores per_page so its pager cannot snap back" do
+  test "catalog revision changes when plugin card data changes" do
+    get directory_json_path
+    revision = body["catalog_revision"]
+
+    @weather.update!(summary: "A changed forecast summary")
+    get directory_json_path
+
+    refute_equal revision, body["catalog_revision"]
+    revision = body["catalog_revision"]
+
+    @weather.increment!(:downloads_count, touch: false)
+    get directory_json_path
+
+    refute_equal revision, body["catalog_revision"], "counter writes without updated_at must invalidate catalog snapshots"
+  end
+
+  test "trending revisions bind daily downloads and the rolling window" do
+    get directory_json_path(sort: "trending")
+    revision = body["catalog_revision"]
+
+    DailyDownload.record!(@v11)
+    get directory_json_path(sort: "trending")
+    refute_equal revision, body["catalog_revision"]
+    assert_equal 1, DailyDownload.find_by!(plugin_version: @v11, date: Date.current).count
+    assert_equal 501, @weather.reload.downloads_count
+    assert_equal 1, @v11.reload.downloads_count
+
+    revision = body["catalog_revision"]
+    travel 1.day do
+      get directory_json_path(sort: "trending")
+      refute_equal revision, body["catalog_revision"], "the seven-day ordering window must identify its date"
+    end
+  end
+
+  test "catalog revision remains constant-space for large catalogs" do
+    now = Time.current
+    rows = (1..HomeController::MAX_PER_PAGE * 51).map do |index|
+      {
+        publisher_id: @acme.id, name: "large-#{index}", normalized_name: "large#{index}",
+        latest_version: "1.0.0", state: Plugin.states.fetch(:active), created_at: now, updated_at: now
+      }
+    end
+    rows.each_slice(500) { |batch| Plugin.insert_all!(batch) }
+
+    statements = []
+    subscriber = lambda do |_name, _start, _finish, _id, payload|
+      statements << payload[:sql] unless payload[:name] == "SCHEMA"
+    end
+    ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+      get directory_json_path(per_page: HomeController::MAX_PER_PAGE)
+    end
+
+    assert_response :success
+    assert_operator body.dig("page", "total"), :>, 5000
+    assert_equal HomeController::MAX_PER_PAGE, body["plugins"].size
+    assert statements.any? { |sql| sql.include?("COUNT(*)") && sql.include?("SUM(plugins.downloads_count)") }
+    assert statements.none? { |sql| sql.match?(/SELECT .*plugins.*id.*plugins.*updated_at/i) },
+      "revision must not pluck and materialize every matching plugin"
+  end
+
+  test "legacy descriptions are safely bounded without invalidating the complete directory response" do
+    legacy_summary = "legacy line\n" + ("x" * (Registry::ManifestValidator::MAX_DESCRIPTION_LENGTH + 100))
+    @weather.update_column(:summary, legacy_summary)
+
+    get directory_json_path
+
+    assert_response :success
+    summary = body["plugins"].sole["summary"]
+    assert_equal Registry::ManifestValidator::MAX_DESCRIPTION_LENGTH, summary.each_char.count
+    assert_includes summary, "\n"
+
+    get root_path
+    assert_response :success
+    assert_select ".index-picker__row[data-summary]", 1 do |rows|
+      assert_equal Registry::ManifestValidator::MAX_DESCRIPTION_LENGTH, rows.first["data-summary"].each_char.count
+    end
+  end
+
+  test "the HTML browser stays at nine cards when a client per_page is supplied" do
     seed_filler(30)
 
     get root_path(per_page: 100)
     assert_response :success
-    assert_select ".plugin-grid .plugin-card", 24
+    assert_select ".index-picker__row", HomeController::PER_PAGE
+    assert_select ".index-picker__row > a.index-picker__card-open[href]", HomeController::PER_PAGE
   end
 
   # --- plugin detail -------------------------------------------------------
@@ -211,6 +388,18 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_equal [ "acme.weather" ], body["plugins"].map { |p| p["id"] }
   end
 
+  test "publisher cards expose a real detail link before JavaScript enhancement" do
+    get publisher_path(@acme.name)
+
+    assert_response :success
+    assert_select "article.plugin-card:not([tabindex])", 1
+    assert_select "a.plugin-card__title-link[href=?]", plugin_path(@acme.name, @weather.name), text: @weather.name
+    assert_select "button.plugin-card__flip[aria-expanded='false'][aria-controls=?]", "plugin-card-back-#{@weather.id}", 1
+    assert_select "#plugin-card-back-#{@weather.id}[aria-hidden='true'][inert]", 1 do
+      assert_select "button.plugin-card__back-toggle[data-action='card-flip#toggleButton']", text: /front/, count: 1
+    end
+  end
+
   # --- visibility ----------------------------------------------------------
 
   test "an unreleased plugin 404s as JSON for the public, exactly like the page" do
@@ -233,6 +422,35 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
     get plugin_path(@acme.name, @weather.name, format: :json), headers: { "If-None-Match" => etag }
     assert_response :not_modified
+  end
+
+  test "directory ETag changes when an off-page category count changes" do
+    off_page = Plugin.create!(publisher: @acme, name: "zeta", summary: "Off page",
+      latest_version: "1.0.0", category: "system", kinds: [ "bar-widget" ])
+    off_page.versions.create!(version: "1.0.0", manifest: {}, sha256: "9" * 64,
+      size_bytes: 1, state: :published, published_at: 2.months.ago)
+
+    get directory_json_path(per_page: 1, sort: "name")
+    assert_response :success
+    etag = response.headers.fetch("ETag")
+    assert_nil response.headers["Last-Modified"], "aggregate directory responses are ETag-only"
+    system_count = body.dig("taxonomy", "categories").find { |row| row["slug"] == "system" }.fetch("count")
+    assert_equal 1, system_count
+
+    # Keep row cache keys, cards, totals, and stats unchanged: only the rendered
+    # off-page facet maps should invalidate this directory response.
+    off_page.update_columns(category: "other")
+    get directory_json_path(per_page: 1, sort: "name"), headers: { "If-None-Match" => etag }
+
+    assert_response :success
+    refute_equal etag, response.headers["ETag"]
+    system_count = body.dig("taxonomy", "categories").find { |row| row["slug"] == "system" }.fetch("count")
+    assert_equal 0, system_count
+
+    get directory_json_path(per_page: 1, sort: "name"),
+      headers: { "If-Modified-Since" => 1.year.from_now.httpdate }
+    assert_response :success
+    assert_nil response.headers["Last-Modified"]
   end
 
   test "a signed-in JSON response is never marked publicly cacheable" do

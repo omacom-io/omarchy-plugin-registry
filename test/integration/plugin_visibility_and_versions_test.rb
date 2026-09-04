@@ -85,6 +85,51 @@ class PluginVisibilityAndVersionsTest < ActionDispatch::IntegrationTest
     assert_select ".sidebar .install-cmd"
   end
 
+  test "provenance omits incomplete CI fields on plugin and version pages" do
+    latest = @released.versions.find_by!(version: "1.2.0")
+    latest.update!(provenance: { "repository" => "acme/weather" })
+
+    [ plugin_path("acme", "weather"), plugin_version_path("acme", "weather", "1.2.0") ].each do |path|
+      get path
+      assert_response :success
+      assert_select ".sidebar section", text: /Provenance/ do
+        assert_select "dt", text: "CI identity", count: 0
+        assert_select "dt", text: "Workflow", count: 0
+        assert_select "dt", text: "Via", count: 1
+        assert_select "a[href*='/commit/']", count: 0
+      end
+    end
+
+    latest.update!(provenance: {
+      "source" => "live-registry-ui-mirror", "repository" => "acme/weather", "sha" => "deadbeefcafe"
+    })
+    get plugin_path("acme", "weather")
+    assert_select ".sidebar section", text: /Provenance/ do
+      assert_select "code", text: "live-registry-ui-mirror", count: 1
+      assert_select "dd", text: /OIDC trusted publishing/, count: 0
+      assert_select "a[href*='/commit/']", count: 0
+    end
+
+    latest.update!(provenance: {
+      "provider" => "gitlab", "repository" => "acme/weather", "sha" => "deadbeefcafe"
+    })
+    get plugin_path("acme", "weather")
+    assert_select ".sidebar section", text: /Provenance/ do
+      assert_select "code", text: "gitlab", count: 1
+      assert_select "dd", text: /OIDC trusted publishing/, count: 0
+      assert_select "a[href*='/commit/']", count: 0
+    end
+
+    latest.update!(provenance: {
+      "repository" => "acme/weather", "sha" => "deadbeefcafe",
+      "workflow" => ".github/workflows/publish.yml@refs/heads/main"
+    })
+    get plugin_path("acme", "weather")
+    assert_select "a[href='https://github.com/acme/weather/commit/deadbeefcafe']", text: "acme/weather@deadbee", count: 1
+    assert_select "dt", text: "Workflow", count: 1
+    assert_select "code", text: "publish.yml", count: 1
+  end
+
   test "a yanked version page shows the withdrawal, not an install command" do
     get plugin_version_path("acme", "weather", "1.1.0")
     assert_response :success

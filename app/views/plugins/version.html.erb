@@ -95,15 +95,7 @@
       <%= render "capabilities", version: @version %>
     <% end %>
     <% if @version.provenance.present? %>
-      <section>
-        <h4>Provenance</h4>
-        <dl>
-          <dt>CI identity</dt>
-          <dd><a href="https://github.com/<%= @version.provenance["repository"] %>/commit/<%= @version.provenance["sha"] %>"><%= @version.provenance["repository"] %>@<%= @version.provenance["sha"].to_s.first(7) %></a></dd>
-          <dt>Workflow</dt><dd><code><%= @version.provenance["workflow"].to_s.split("@").first.to_s.split("/").last %></code></dd>
-          <dt>Via</dt><dd>OIDC trusted publishing (job identity, not a build attestation)</dd>
-        </dl>
-      </section>
+      <%= render "plugins/provenance", provenance: @version.provenance %>
     <% end %>
     <section>
       <h4>Versions</h4>
